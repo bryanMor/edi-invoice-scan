@@ -3,81 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SnapEDI Pro - Stable v1.1</title>
+    <title>SnapEDI Pro - Batch v1.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .edi-font { font-family: 'Courier New', Courier, monospace; }
         .scroll-hide::-webkit-scrollbar { display: none; }
         .settings-panel { transition: transform 0.3s ease-in-out; }
+        .photo-bubble-container { position: relative; flex-shrink: 0; }
+        .remove-badge { 
+            position: absolute; top: -5px; right: -5px; 
+            background: #ef4444; color: white; border-radius: 50%; 
+            width: 20px; height: 20px; font-size: 12px; 
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; border: 2px solid white;
+        }
+        .photo-bubble { width: 70px; height: 70px; object-fit: cover; border-radius: 16px; border: 2px solid #6366f1; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans overflow-x-hidden">
 
-    <div id="settingsOverlay" class="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 transform translate-x-full settings-panel border-l border-slate-200">
+    <div id="settingsOverlay" class="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 transform translate-x-full settings-panel border-l border-slate-200 overflow-y-auto">
         <div class="p-6">
             <div class="flex justify-between items-center mb-8">
-                <h2 class="text-xl font-black text-slate-800">Settings</h2>
+                <h2 class="text-xl font-black text-slate-800">Configuration</h2>
                 <button onclick="UI.toggleSettings()" class="text-slate-400 hover:text-slate-600">✕</button>
             </div>
             
             <div class="space-y-6">
                 <div>
                     <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Gemini API Key</label>
-                    <input type="password" id="apiKeyInput" placeholder="Enter Key..." class="w-full bg-slate-100 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500">
+                    <input type="password" id="apiKeyInput" placeholder="Enter Key..." class="w-full bg-slate-100 border-none rounded-xl p-3 text-sm">
                 </div>
                 <div>
                     <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Default Margin (%)</label>
                     <input type="number" id="marginInput" value="35" class="w-full bg-slate-100 border-none rounded-xl p-3 text-sm">
                 </div>
-                <button onclick="UI.saveSettings()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-100">Save Config</button>
+
+                <div class="border-t border-slate-100 pt-6">
+                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">GitHub Cloud Sync</label>
+                    <input type="password" id="ghTokenInput" placeholder="Token (pat_...)" class="w-full bg-slate-100 border-none rounded-xl p-3 text-sm mb-2">
+                    <input type="text" id="ghRepoInput" placeholder="username/repo-name" class="w-full bg-slate-100 border-none rounded-xl p-3 text-sm mb-3">
+                    <button onclick="UI.testGitHub()" class="w-full bg-slate-800 text-white text-[10px] font-black py-2 rounded-lg uppercase tracking-widest hover:bg-black transition">Test Connection</button>
+                </div>
+
+                <button onclick="UI.saveSettings()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-100 mt-4">Save All Settings</button>
             </div>
         </div>
     </div>
 
     <main class="max-w-4xl mx-auto p-4 pb-20">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <div class="flex items-center gap-4">
+        <div class="flex flex-col gap-4 mb-6">
+            <div class="flex justify-between items-center">
                 <div>
                     <h1 class="text-3xl font-black text-indigo-600 italic leading-none">SnapEDI</h1>
-                    <p id="vendorDisplay" class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2 font-mono">Ready to scan</p>
+                    <p id="vendorDisplay" class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2 font-mono italic">Multi-Page Batch Mode</p>
                 </div>
-                <button onclick="UI.toggleSettings()" class="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition">
-                    ⚙️
+                <button onclick="UI.toggleSettings()" class="p-3 bg-white shadow-sm border border-slate-100 rounded-2xl hover:bg-slate-50 transition">⚙️</button>
+            </div>
+
+            <div id="photoQueue" class="flex gap-4 overflow-x-auto py-2 px-1 scroll-hide min-h-[90px] items-center">
+                </div>
+
+            <div class="flex gap-3 w-full">
+                <button onclick="document.getElementById('fileInput').click()" class="flex-[2] bg-white border-2 border-indigo-600 text-indigo-600 px-6 py-4 rounded-[2rem] font-black active:scale-95 transition flex items-center justify-center gap-3">
+                    <span class="text-xl">📸</span>
+                    <span class="text-xs uppercase tracking-tight">Add Page / PDF</span>
                 </button>
+                <button id="processBtn" onclick="processBatch()" class="flex-[3] hidden bg-indigo-600 text-white px-6 py-4 rounded-[2rem] font-black shadow-xl shadow-indigo-100 active:scale-95 transition flex items-center justify-center gap-3">
+                    <span class="text-xl">🚀</span>
+                    <span class="text-xs uppercase tracking-tight">Process Invoice</span>
+                </button>
+                <button onclick="clearBatch()" class="flex-1 bg-slate-200 text-slate-600 rounded-[2rem] font-black text-xs uppercase">Clear</button>
             </div>
-            <div class="flex gap-3 w-full md:w-auto">
-                <button onclick="document.getElementById('fileInput').click()" class="flex-1 bg-white border-2 border-indigo-600 text-indigo-600 px-6 py-3 rounded-2xl font-bold active:scale-95 transition">New Scan</button>
-                <button id="topDownloadBtn" onclick="downloadEDI()" class="flex-1 hidden bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-indigo-200 active:scale-95 transition">Download EDI</button>
-            </div>
-            <input type="file" id="fileInput" class="hidden" onchange="processFile(this)">
+            <input type="file" id="fileInput" class="hidden" multiple onchange="addToQueue(this)">
         </div>
 
         <div id="summaryCard" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            <div class="bg-slate-900 text-white p-6 rounded-[2rem] shadow-xl">
-                <p class="text-slate-400 text-xs font-bold uppercase mb-1">Invoice Grand Total</p>
-                <h2 id="grandTotal" class="text-4xl font-black text-emerald-400">$0.00</h2>
+            <div class="bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-4 opacity-10 text-6xl italic font-black">$$$</div>
+                <p class="text-slate-400 text-[10px] font-black uppercase mb-1">Invoice Total</p>
+                <h2 id="grandTotal" class="text-4xl font-black text-emerald-400 tracking-tighter font-mono">$0.00</h2>
             </div>
-            <div class="bg-white border border-slate-200 p-6 rounded-[2rem] shadow-sm flex flex-col justify-center">
-                <p class="text-slate-400 text-xs font-bold uppercase mb-2 text-wrap">Generated Filename</p>
-                <div id="filenamePreview" class="font-mono text-[11px] bg-slate-100 p-2 rounded-lg text-indigo-600 font-bold break-all">---</div>
+            <div class="bg-white border border-slate-200 p-8 rounded-[2.5rem] shadow-sm flex flex-col justify-center">
+                <p class="text-slate-400 text-[10px] font-black uppercase mb-2">Target Filename</p>
+                <div id="filenamePreview" class="font-mono text-[10px] bg-slate-50 p-3 rounded-xl text-indigo-600 font-bold border border-indigo-50">---</div>
             </div>
         </div>
 
         <div id="loader" class="hidden flex flex-col items-center py-20">
-            <div class="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
-            <p class="mt-4 font-black text-indigo-600 animate-pulse uppercase text-xs tracking-widest text-center">Reading Invoice...</p>
+            <div class="w-14 h-14 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+            <p class="mt-6 font-black text-indigo-600 animate-pulse uppercase text-[10px] tracking-[0.3em] text-center">AI Analyzing Document Bundle...</p>
         </div>
 
-        <div id="tableContainer" class="hidden bg-white rounded-[2.5rem] shadow-xl border border-slate-200 overflow-hidden mb-10">
+        <div id="tableContainer" class="hidden bg-white rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden mb-10">
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
-                    <thead class="bg-slate-50 border-b border-slate-100">
+                    <thead class="bg-slate-50/50 border-b border-slate-100">
                         <tr>
-                            <th class="px-6 py-5 font-black text-slate-400 uppercase text-[10px]">UPC (11)</th>
-                            <th class="px-6 py-5 font-black text-slate-400 uppercase text-[10px]">Description</th>
-                            <th class="px-6 py-5 font-black text-slate-400 uppercase text-[10px]">Net Case</th>
-                            <th class="px-6 py-5 font-black text-slate-400 uppercase text-[10px]">Cases</th>
-                            <th class="px-6 py-5 font-black text-slate-400 uppercase text-[10px]">Unit Retail</th>
+                            <th class="px-8 py-6 font-black text-slate-400 uppercase text-[9px]">UPC (11)</th>
+                            <th class="px-8 py-6 font-black text-slate-400 uppercase text-[9px]">Product Description</th>
+                            <th class="px-8 py-6 font-black text-slate-400 uppercase text-[9px]">Case Cost</th>
+                            <th class="px-8 py-6 font-black text-slate-400 uppercase text-[9px]">Qty</th>
+                            <th class="px-8 py-6 font-black text-slate-400 uppercase text-[9px]">Retail</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody" class="divide-y divide-slate-50"></tbody>
@@ -85,16 +112,15 @@
             </div>
         </div>
 
-        <div id="logSection" class="mt-10">
-            <h3 class="text-slate-400 text-xs font-black uppercase tracking-widest mb-4 ml-2">Export History</h3>
-            <div id="downloadLog" class="space-y-3"></div>
+        <div id="logSection" class="mt-12">
+            <h3 class="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-6 ml-4">Export Log</h3>
+            <div id="downloadLog" class="space-y-4"></div>
         </div>
     </main>
 
     <script>
-        /**
-         * SECTION 1: THE ENGINE (CORE LOGIC)
-         */
+        let fileQueue = [];
+        
         const Engine = {
             vendorName: "VENDOR",
             invoiceDate: "JAN-01-26",
@@ -109,11 +135,6 @@
                 return (cost / (units > 0 ? units : 1)) * this.margin;
             },
 
-            formatSKU: function(rawSku) {
-                let s = String(rawSku || "").replace(/\D/g, "");
-                return s.length > 6 ? s.slice(-6) : s.padStart(6, '0');
-            },
-
             buildFilename: function() {
                 const cleanVendor = this.vendorName.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase().substring(0, 10).padEnd(10, ' ');
                 return `${cleanVendor} - (${this.invoiceDate}).txt`;
@@ -122,41 +143,46 @@
             generateEDILine: function(item) {
                 const upc = String(item.upc || "").replace(/\D/g, "").padStart(11, '0').slice(0, 11);
                 const desc = String(item.description || "").toUpperCase().substring(0, 26).padEnd(26, ' ');
-                const sku = this.formatSKU(item.sku);
                 const cost = String(Math.round((Number(item.net_case_price) || 0) * 100)).padStart(5, '0').slice(0, 5);
-                const uom = (item.uom || "CS").toUpperCase().substring(0, 2).padEnd(2, ' ');
                 const units = String(Number(item.units_case) || 1).padStart(6, '0').slice(0, 6);
                 const qty = String(Number(item.qty_ordered) || 0).padStart(4, '0').slice(0, 4);
                 const retail = String(Math.round(this.calculateRetail(item) * 100)).padStart(5, '0').slice(0, 5);
-                return `B${upc}${desc}${sku}${cost}${uom}${units}+${qty}${retail}001`;
+                const sku = String(item.sku || "").replace(/\D/g, "").padStart(6, '0').slice(-6);
+                return `B${upc}${desc}${sku}${cost}CS${units}+${qty}${retail}001`;
             }
         };
 
-        /**
-         * SECTION 2: UI CONTROLLER
-         */
         const UI = {
-            toggleSettings: function() {
-                const panel = document.getElementById('settingsOverlay');
-                panel.classList.toggle('translate-x-full');
-            },
+            toggleSettings: () => document.getElementById('settingsOverlay').classList.toggle('translate-x-full'),
 
             saveSettings: function() {
-                const key = document.getElementById('apiKeyInput').value;
-                const marginVal = document.getElementById('marginInput').value;
-                localStorage.setItem('snap_edi_key', key);
-                localStorage.setItem('snap_edi_margin', marginVal);
-                Engine.margin = (Number(marginVal) / 100) + 1;
+                localStorage.setItem('snap_edi_key', document.getElementById('apiKeyInput').value);
+                localStorage.setItem('snap_edi_margin', document.getElementById('marginInput').value);
+                localStorage.setItem('gh_token', document.getElementById('ghTokenInput').value);
+                localStorage.setItem('gh_repo', document.getElementById('ghRepoInput').value);
+                Engine.margin = (Number(document.getElementById('marginInput').value) / 100) + 1;
                 this.toggleSettings();
-                alert("Settings Saved!");
+                alert("Config Saved");
             },
 
             loadSettings: function() {
-                const key = localStorage.getItem('snap_edi_key');
-                const m = localStorage.getItem('snap_edi_margin') || "35";
-                if(key) document.getElementById('apiKeyInput').value = key;
-                document.getElementById('marginInput').value = m;
-                Engine.margin = (Number(m) / 100) + 1;
+                document.getElementById('apiKeyInput').value = localStorage.getItem('snap_edi_key') || "";
+                document.getElementById('marginInput').value = localStorage.getItem('snap_edi_margin') || "35";
+                document.getElementById('ghTokenInput').value = localStorage.getItem('gh_token') || "";
+                document.getElementById('ghRepoInput').value = localStorage.getItem('gh_repo') || "";
+                Engine.margin = (Number(document.getElementById('marginInput').value) / 100) + 1;
+            },
+
+            async testGitHub() {
+                const token = document.getElementById('ghTokenInput').value;
+                const repo = document.getElementById('ghRepoInput').value;
+                try {
+                    const res = await fetch(`https://api.github.com/repos/${repo}`, {
+                        headers: {'Authorization': `token ${token}`}
+                    });
+                    if(res.ok) alert("GitHub Connected Successfully! ✅");
+                    else alert("Connection Failed. Check Token/Repo Name. ❌");
+                } catch(e) { alert("Error connecting to GitHub"); }
             },
 
             updateDashboard: function() {
@@ -164,83 +190,131 @@
                 document.getElementById('grandTotal').innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(total);
                 document.getElementById('filenamePreview').innerText = Engine.buildFilename();
                 document.getElementById('vendorDisplay').innerText = `INV DATE: ${Engine.invoiceDate} | VENDOR: ${Engine.vendorName}`;
-                
                 document.getElementById('summaryCard').classList.remove('hidden');
                 document.getElementById('topDownloadBtn').classList.remove('hidden');
                 document.getElementById('tableContainer').classList.remove('hidden');
 
-                const tbody = document.getElementById('tableBody');
-                tbody.innerHTML = Engine.items.map(item => `
-                    <tr class="hover:bg-indigo-50/30 transition">
-                        <td class="px-6 py-5 font-mono text-xs text-slate-500">${item.upc}</td>
-                        <td class="px-6 py-5">
-                            <div class="font-bold text-slate-800 uppercase text-xs">${item.description}</div>
-                            <div class="text-[9px] text-slate-400 font-bold uppercase">Pack: ${item.units_case}</div>
-                        </td>
-                        <td class="px-6 py-5 font-black text-indigo-600 text-xs">$${Number(item.net_case_price).toFixed(2)}</td>
-                        <td class="px-6 py-5 font-black text-slate-800 text-center">${item.qty_ordered}</td>
-                        <td class="px-6 py-5 font-black text-emerald-600 text-xs">$${Engine.calculateRetail(item).toFixed(2)}</td>
+                document.getElementById('tableBody').innerHTML = Engine.items.map(item => `
+                    <tr class="hover:bg-indigo-50/40 transition">
+                        <td class="px-8 py-6 font-mono text-xs text-slate-400">${item.upc}</td>
+                        <td class="px-8 py-6 font-bold text-slate-800 uppercase text-xs">${item.description}</td>
+                        <td class="px-8 py-6 font-black text-indigo-600 text-xs">$${Number(item.net_case_price).toFixed(2)}</td>
+                        <td class="px-8 py-6 font-black text-slate-800 text-center">${item.qty_ordered}</td>
+                        <td class="px-8 py-6 font-black text-emerald-600 text-xs">$${Engine.calculateRetail(item).toFixed(2)}</td>
                     </tr>
                 `).join('');
+            },
+
+            addToLog: function(name, amount, id) {
+                const log = document.getElementById('downloadLog');
+                const entry = document.createElement('div');
+                entry.id = id;
+                entry.className = "bg-white p-5 rounded-[2rem] flex justify-between items-center shadow-sm border border-slate-100 mx-1";
+                entry.innerHTML = `
+                    <div>
+                        <div class="text-[10px] font-black text-slate-900 uppercase font-mono">${name}</div>
+                        <div class="flex gap-2 items-center mt-1">
+                            <span class="text-[9px] text-slate-400 font-bold tracking-tight">${new Date().toLocaleTimeString()}</span>
+                            <span class="sync-status text-[9px] font-black uppercase tracking-tighter"></span>
+                        </div>
+                    </div>
+                    <div class="text-sm font-black text-indigo-600">${amount}</div>`;
+                log.prepend(entry);
             }
         };
 
-        /**
-         * SECTION 3: SYSTEM INTEGRATION
-         */
-        async function processFile(input) {
-            const file = input.files[0];
+        async function addToQueue(input) {
+            for (const file of Array.from(input.files)) {
+                const b64 = await toBase64(file);
+                const id = Date.now() + Math.random();
+                fileQueue.push({ id, mime: file.type, data: b64.split(',')[1] });
+                
+                const container = document.createElement('div');
+                container.className = "photo-bubble-container";
+                container.id = `bubble-${id}`;
+                container.innerHTML = `
+                    <div class="remove-badge" onclick="removeFromQueue(${id})">✕</div>
+                    <img src="${file.type === 'application/pdf' ? 'https://cdn-icons-png.flaticon.com/512/337/337946.png' : b64}" class="photo-bubble">
+                `;
+                document.getElementById('photoQueue').appendChild(container);
+            }
+            document.getElementById('processBtn').classList.remove('hidden');
+        }
+
+        function removeFromQueue(id) {
+            fileQueue = fileQueue.filter(f => f.id !== id);
+            document.getElementById(`bubble-${id}`).remove();
+            if(fileQueue.length === 0) document.getElementById('processBtn').classList.add('hidden');
+        }
+
+        function clearBatch() {
+            fileQueue = [];
+            document.getElementById('photoQueue').innerHTML = '';
+            document.getElementById('processBtn').classList.add('hidden');
+        }
+
+        async function processBatch() {
             const apiKey = localStorage.getItem('snap_edi_key');
-            if(!apiKey) return alert("Please set your API Key in Settings first.");
+            if(!apiKey) return alert("API Key Missing");
 
             document.getElementById('loader').classList.remove('hidden');
+            document.getElementById('processBtn').classList.add('hidden');
             
             try {
-                const b64 = (await toBase64(file)).split(',')[1];
+                const parts = [
+                    { text: "These images/PDFs are parts of ONE invoice. Extract: 1. vendor_name, 2. invoice_date (MMM-DD-YY), 3. items: upc (11 digits), description, sku, net_case_price (per case), units_case (per case), qty_ordered (number of cases), suggested_retail (per single unit, 0 if missing). Output JSON." },
+                    ...fileQueue.map(f => ({ inlineData: { mimeType: f.mime, data: f.data } }))
+                ];
+
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        contents: [{ parts: [
-                            { text: "Extract invoice JSON: vendor_name, invoice_date (MMM-DD-YY), items (upc, description, sku, net_case_price, units_case, qty_ordered, suggested_retail)." },
-                            { inlineData: { mimeType: file.type, data: b64 } }
-                        ]}],
-                        generationConfig: { responseMimeType: "application/json" }
-                    })
+                    body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: "application/json" } })
                 });
 
                 const data = await res.json();
                 const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
-                
                 Engine.vendorName = parsed.vendor_name || "VENDOR";
                 Engine.invoiceDate = parsed.invoice_date || "UNKNOWN";
                 Engine.items = parsed.items;
-
                 UI.updateDashboard();
-            } catch (err) { alert("Error: " + err.message); }
+                clearBatch();
+            } catch (err) { alert("Scan Error: " + err.message); document.getElementById('processBtn').classList.remove('hidden'); }
             finally { document.getElementById('loader').classList.add('hidden'); }
         }
 
-        function downloadEDI() {
+        async function downloadEDI() {
             const filename = Engine.buildFilename();
-            const text = Engine.items.map(item => Engine.generateEDILine(item)).join('\n');
-            const blob = new Blob([text], { type: 'text/plain' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = filename;
+            const content = Engine.items.map(item => Engine.generateEDILine(item)).join('\n');
+            const amount = document.getElementById('grandTotal').innerText;
+            const logId = "log-" + Date.now();
+
+            // Local Download
+            const blob = new Blob([content], { type: 'text/plain' });
+            const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: filename });
             a.click();
-            
-            // Log entry
-            const log = document.getElementById('downloadLog');
-            const entry = document.createElement('div');
-            entry.className = "bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm border border-slate-100";
-            entry.innerHTML = `<div><div class="text-[10px] font-black text-indigo-600 uppercase font-mono">${filename}</div><div class="text-[9px] text-slate-400 uppercase font-bold">${new Date().toLocaleTimeString()}</div></div><div class="text-sm font-black text-slate-900">${document.getElementById('grandTotal').innerText}</div>`;
-            log.prepend(entry);
+
+            // Cloud Sync
+            const ghToken = localStorage.getItem('gh_token');
+            const ghRepo = localStorage.getItem('gh_repo');
+            UI.addToLog(filename, amount, logId);
+
+            if (ghToken && ghRepo) {
+                const statusEl = document.getElementById(logId).querySelector('.sync-status');
+                statusEl.innerText = "⏳ Syncing...";
+                try {
+                    const res = await fetch(`https://api.github.com/repos/${ghRepo}/contents/invoices/${filename}`, {
+                        method: 'PUT',
+                        headers: {'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json'},
+                        body: JSON.stringify({ message: `Upload: ${filename}`, content: btoa(unescape(encodeURIComponent(content))) })
+                    });
+                    if (res.ok) { statusEl.innerText = "☁️ Synced"; statusEl.className = "sync-status text-[9px] font-black uppercase text-emerald-500"; }
+                    else { throw new Error(); }
+                } catch { statusEl.innerText = "📁 Local Only"; statusEl.className = "sync-status text-[9px] font-black uppercase text-amber-500"; }
+            }
         }
 
         function toBase64(f) { return new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(f); r.onload = () => res(r.result); r.onerror = e => rej(e); }); }
-
-        // Initial Load
         UI.loadSettings();
     </script>
 </body>
