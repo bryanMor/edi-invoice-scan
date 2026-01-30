@@ -27,18 +27,18 @@
 
         <div id="summaryCard" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             <div class="bg-slate-900 text-white p-6 rounded-[2rem] shadow-xl">
-                <p class="text-slate-400 text-xs font-bold uppercase mb-1">Grand Total (Net Cost)</p>
+                <p class="text-slate-400 text-xs font-bold uppercase mb-1">Invoice Grand Total</p>
                 <h2 id="grandTotal" class="text-4xl font-black text-emerald-400">$0.00</h2>
             </div>
             <div class="bg-white border border-slate-200 p-6 rounded-[2rem] shadow-sm">
-                <p class="text-slate-400 text-xs font-bold uppercase mb-2">Current Filename</p>
-                <div id="filenamePreview" class="font-mono text-sm text-indigo-600 font-bold">---</div>
+                <p class="text-slate-400 text-xs font-bold uppercase mb-2">Target Filename</p>
+                <div id="filenamePreview" class="font-mono text-sm text-indigo-600 font-bold tracking-tighter">---</div>
             </div>
         </div>
 
         <div id="loader" class="hidden flex flex-col items-center py-20">
             <div class="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
-            <p class="mt-4 font-black text-indigo-600 animate-pulse uppercase text-xs tracking-widest">Identifying Vendor & Items...</p>
+            <p class="mt-4 font-black text-indigo-600 animate-pulse uppercase text-xs tracking-widest text-center">Distinguishing Cases vs Units...</p>
         </div>
 
         <div id="tableContainer" class="hidden bg-white rounded-[2.5rem] shadow-xl border border-slate-200 overflow-hidden mb-10">
@@ -48,9 +48,8 @@
                         <tr>
                             <th class="px-6 py-5 font-black text-slate-400 uppercase text-[10px]">UPC (11)</th>
                             <th class="px-6 py-5 font-black text-slate-400 uppercase text-[10px]">Product Description</th>
-                            <th class="px-6 py-5 font-black text-slate-400 uppercase text-[10px]">SKU (6)</th>
-                            <th class="px-6 py-5 font-black text-slate-400 uppercase text-[10px]">Net Case</th>
-                            <th class="px-6 py-5 font-black text-slate-400 uppercase text-[10px]">Qty</th>
+                            <th class="px-6 py-5 font-black text-slate-400 uppercase text-[10px]">Net Case Cost</th>
+                            <th class="px-6 py-5 font-black text-slate-400 uppercase text-[10px]">Cases Ordered</th>
                             <th class="px-6 py-5 font-black text-slate-400 uppercase text-[10px]">Unit Retail</th>
                         </tr>
                     </thead>
@@ -61,8 +60,7 @@
 
         <div id="logSection" class="mt-10">
             <h3 class="text-slate-400 text-xs font-black uppercase tracking-widest mb-4 ml-2">Export History</h3>
-            <div id="downloadLog" class="space-y-3">
-                </div>
+            <div id="downloadLog" class="space-y-3"></div>
         </div>
     </main>
 
@@ -79,18 +77,15 @@
         function calculateRetail(item) {
             const srp = Number(item.suggested_retail) || 0;
             if (srp > 0) return srp;
-            const units = Number(item.units_case) || 1;
-            const cost = Number(item.net_case_price) || 0;
-            return (cost / (units > 0 ? units : 1)) * 1.35;
+            const unitsPerCase = Number(item.units_case) || 1;
+            const caseCost = Number(item.net_case_price) || 0;
+            return (caseCost / (unitsPerCase > 0 ? unitsPerCase : 1)) * 1.35;
         }
 
         function getFormattedDate() {
             const d = new Date();
             const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-            const m = months[d.getMonth()];
-            const day = String(d.getDate()).padStart(2, '0');
-            const y = String(d.getFullYear()).slice(-2);
-            return `${m}${day}${y}`;
+            return `${months[d.getMonth()]}${String(d.getDate()).padStart(2, '0')}${String(d.getFullYear()).slice(-2)}`;
         }
 
         function generateEDILine(item) {
@@ -100,17 +95,17 @@
             const cost = String(Math.round((Number(item.net_case_price) || 0) * 100)).padStart(5, '0').slice(0, 5);
             const uom = (item.uom || "CS").toUpperCase().substring(0, 2).padEnd(2, ' ');
             const units = String(Number(item.units_case) || 1).padStart(6, '0').slice(0, 6);
-            const plusSign = "+";
-            const qty = String(Number(item.qty) || 0).padStart(4, '0').slice(0, 4);
+            const qty = String(Number(item.qty_ordered) || 0).padStart(4, '0').slice(0, 4);
             const retail = String(Math.round(calculateRetail(item) * 100)).padStart(5, '0').slice(0, 5);
-            return `B${upc}${desc}${sku}${cost}${uom}${units}${plusSign}${qty}${retail}001`;
+            return `B${upc}${desc}${sku}${cost}${uom}${units}+${qty}${retail}001`;
         }
 
         function renderDisplay() {
             if (extractedItems.length === 0) return;
 
-            const total = extractedItems.reduce((sum, item) => sum + (Number(item.net_case_price) * Number(item.qty) || 0), 0);
-            const filename = `${vendorName.substring(0, 9).toUpperCase()}_${getFormattedDate()}.txt`;
+            const total = extractedItems.reduce((sum, item) => sum + (Number(item.net_case_price) * Number(item.qty_ordered) || 0), 0);
+            const cleanVendor = vendorName.replace(/[^a-zA-Z0-9 ]/g, "").substring(0, 9).trim().toUpperCase();
+            const filename = `${cleanVendor}_${getFormattedDate()}.txt`;
 
             document.getElementById('grandTotal').innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(total);
             document.getElementById('filenamePreview').innerText = filename;
@@ -126,11 +121,10 @@
                     <td class="px-6 py-5 font-mono text-xs text-slate-500">${item.upc}</td>
                     <td class="px-6 py-5">
                         <div class="font-bold text-slate-800 uppercase text-xs">${item.description}</div>
-                        <div class="text-[9px] text-slate-400 font-bold uppercase">Pack: ${item.units_case} | SRP: ${Number(item.suggested_retail) > 0 ? 'YES' : 'CALC'}</div>
+                        <div class="text-[9px] text-slate-400 font-bold uppercase">Pack Size: ${item.units_case} Units</div>
                     </td>
-                    <td class="px-6 py-5 text-slate-500 font-mono text-xs">${formatSKU(item.sku)}</td>
                     <td class="px-6 py-5 font-black text-indigo-600">$${Number(item.net_case_price).toFixed(2)}</td>
-                    <td class="px-6 py-5 font-black text-slate-800 text-center">${item.qty}</td>
+                    <td class="px-6 py-5 font-black text-slate-800 text-center">${item.qty_ordered}</td>
                     <td class="px-6 py-5 font-black text-emerald-600">$${calculateRetail(item).toFixed(2)}</td>
                 </tr>
             `).join('');
@@ -139,7 +133,8 @@
         async function processFile(input) {
             const file = input.files[0];
             const apiKey = localStorage.getItem('gemini_api_key');
-            
+            if(!apiKey) return alert("Please save your Gemini API Key first.");
+
             document.getElementById('loader').classList.remove('hidden');
             
             try {
@@ -149,7 +144,7 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         contents: [{ parts: [
-                            { text: "Extract invoice details into JSON. Requirement: 1. vendor_name (found at top), 2. items array containing: upc (11 digits), description, sku, net_case_price, units_case, qty, and suggested_retail (single unit price, set to 0 if not found)." },
+                            { text: "Extract invoice data into JSON. Requirement: 1. vendor_name (found at top), 2. items array: upc (11 digits), description, sku, net_case_price (cost of one case), units_case (number of units inside one case), qty_ordered (total number of cases or packs ordered), and suggested_retail (single unit price, set to 0 if not found). CRITICAL: Ensure qty_ordered reflects the number of cases/packs, NOT the total unit count." },
                             { inlineData: { mimeType: file.type, data: b64 } }
                         ]}],
                         generationConfig: { responseMimeType: "application/json" }
@@ -158,15 +153,16 @@
 
                 const data = await res.json();
                 const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
-                vendorName = parsed.vendor_name || "UNKNOWN";
+                vendorName = parsed.vendor_name || "VENDOR";
                 extractedItems = parsed.items;
                 renderDisplay();
-            } catch (err) { alert("Error: " + err.message); }
+            } catch (err) { alert("Extraction Error: " + err.message); }
             finally { document.getElementById('loader').classList.add('hidden'); }
         }
 
         function downloadEDI() {
-            const filename = `${vendorName.substring(0, 9).trim().toUpperCase()}_${getFormattedDate()}.txt`;
+            const cleanVendor = vendorName.replace(/[^a-zA-Z0-9 ]/g, "").substring(0, 9).trim().toUpperCase();
+            const filename = `${cleanVendor}_${getFormattedDate()}.txt`;
             const text = extractedItems.map(item => generateEDILine(item)).join('\n');
             const blob = new Blob([text], { type: 'text/plain' });
             const a = document.createElement('a');
@@ -174,7 +170,6 @@
             a.download = filename;
             a.click();
 
-            // Add to Log
             const log = document.getElementById('downloadLog');
             const entry = document.createElement('div');
             entry.className = "bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm border border-slate-100";
