@@ -3,20 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SnapEDI Pro - 2026</title>
+    <title>SnapEDI Pro - Stable v1.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .edi-font { font-family: 'Courier New', Courier, monospace; }
         .scroll-hide::-webkit-scrollbar { display: none; }
+        .settings-panel { transition: transform 0.3s ease-in-out; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 font-sans">
+<body class="bg-slate-50 text-slate-900 font-sans overflow-x-hidden">
+
+    <div id="settingsOverlay" class="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 transform translate-x-full settings-panel border-l border-slate-200">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-xl font-black text-slate-800">Settings</h2>
+                <button onclick="UI.toggleSettings()" class="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Gemini API Key</label>
+                    <input type="password" id="apiKeyInput" placeholder="Enter Key..." class="w-full bg-slate-100 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Default Margin (%)</label>
+                    <input type="number" id="marginInput" value="35" class="w-full bg-slate-100 border-none rounded-xl p-3 text-sm">
+                </div>
+                <button onclick="UI.saveSettings()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-100">Save Config</button>
+            </div>
+        </div>
+    </div>
 
     <main class="max-w-4xl mx-auto p-4 pb-20">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <div>
-                <h1 class="text-3xl font-black text-indigo-600 italic leading-none">SnapEDI</h1>
-                <p id="vendorDisplay" class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2 font-mono">Ready to scan</p>
+            <div class="flex items-center gap-4">
+                <div>
+                    <h1 class="text-3xl font-black text-indigo-600 italic leading-none">SnapEDI</h1>
+                    <p id="vendorDisplay" class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2 font-mono">Ready to scan</p>
+                </div>
+                <button onclick="UI.toggleSettings()" class="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition">
+                    ⚙️
+                </button>
             </div>
             <div class="flex gap-3 w-full md:w-auto">
                 <button onclick="document.getElementById('fileInput').click()" class="flex-1 bg-white border-2 border-indigo-600 text-indigo-600 px-6 py-3 rounded-2xl font-bold active:scale-95 transition">New Scan</button>
@@ -31,14 +58,14 @@
                 <h2 id="grandTotal" class="text-4xl font-black text-emerald-400">$0.00</h2>
             </div>
             <div class="bg-white border border-slate-200 p-6 rounded-[2rem] shadow-sm flex flex-col justify-center">
-                <p class="text-slate-400 text-xs font-bold uppercase mb-2">Generated Filename</p>
+                <p class="text-slate-400 text-xs font-bold uppercase mb-2 text-wrap">Generated Filename</p>
                 <div id="filenamePreview" class="font-mono text-[11px] bg-slate-100 p-2 rounded-lg text-indigo-600 font-bold break-all">---</div>
             </div>
         </div>
 
         <div id="loader" class="hidden flex flex-col items-center py-20">
             <div class="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
-            <p class="mt-4 font-black text-indigo-600 animate-pulse uppercase text-xs tracking-widest text-center">Reading Vendor Date & Items...</p>
+            <p class="mt-4 font-black text-indigo-600 animate-pulse uppercase text-xs tracking-widest text-center">Reading Invoice...</p>
         </div>
 
         <div id="tableContainer" class="hidden bg-white rounded-[2.5rem] shadow-xl border border-slate-200 overflow-hidden mb-10">
@@ -65,74 +92,106 @@
     </main>
 
     <script>
-        let extractedItems = [];
-        let vendorName = "VENDOR";
-        let invoiceDateStr = "JAN-01-26";
+        /**
+         * SECTION 1: THE ENGINE (CORE LOGIC)
+         */
+        const Engine = {
+            vendorName: "VENDOR",
+            invoiceDate: "JAN-01-26",
+            items: [],
+            margin: 1.35,
 
-        function formatSKU(rawSku) {
-            let s = String(rawSku || "").replace(/\D/g, "");
-            if (s.length > 6) return s.slice(-6);
-            return s.padStart(6, '0');
-        }
+            calculateRetail: function(item) {
+                const srp = Number(item.suggested_retail) || 0;
+                if (srp > 0) return srp;
+                const units = Number(item.units_case) || 1;
+                const cost = Number(item.net_case_price) || 0;
+                return (cost / (units > 0 ? units : 1)) * this.margin;
+            },
 
-        function calculateRetail(item) {
-            const srp = Number(item.suggested_retail) || 0;
-            if (srp > 0) return srp;
-            const unitsPerCase = Number(item.units_case) || 1;
-            const caseCost = Number(item.net_case_price) || 0;
-            return (caseCost / (unitsPerCase > 0 ? unitsPerCase : 1)) * 1.35;
-        }
+            formatSKU: function(rawSku) {
+                let s = String(rawSku || "").replace(/\D/g, "");
+                return s.length > 6 ? s.slice(-6) : s.padStart(6, '0');
+            },
 
-        function buildFilename() {
-            // Force exactly 10 characters for vendor
-            const cleanVendor = vendorName.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase().substring(0, 10).padEnd(10, ' ');
-            return `${cleanVendor} - (${invoiceDateStr}).txt`;
-        }
+            buildFilename: function() {
+                const cleanVendor = this.vendorName.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase().substring(0, 10).padEnd(10, ' ');
+                return `${cleanVendor} - (${this.invoiceDate}).txt`;
+            },
 
-        function generateEDILine(item) {
-            const upc = String(item.upc || "").replace(/\D/g, "").padStart(11, '0').slice(0, 11);
-            const desc = String(item.description || "").toUpperCase().substring(0, 26).padEnd(26, ' ');
-            const sku = formatSKU(item.sku);
-            const cost = String(Math.round((Number(item.net_case_price) || 0) * 100)).padStart(5, '0').slice(0, 5);
-            const uom = (item.uom || "CS").toUpperCase().substring(0, 2).padEnd(2, ' ');
-            const units = String(Number(item.units_case) || 1).padStart(6, '0').slice(0, 6);
-            const qty = String(Number(item.qty_ordered) || 0).padStart(4, '0').slice(0, 4);
-            const retail = String(Math.round(calculateRetail(item) * 100)).padStart(5, '0').slice(0, 5);
-            return `B${upc}${desc}${sku}${cost}${uom}${units}+${qty}${retail}001`;
-        }
+            generateEDILine: function(item) {
+                const upc = String(item.upc || "").replace(/\D/g, "").padStart(11, '0').slice(0, 11);
+                const desc = String(item.description || "").toUpperCase().substring(0, 26).padEnd(26, ' ');
+                const sku = this.formatSKU(item.sku);
+                const cost = String(Math.round((Number(item.net_case_price) || 0) * 100)).padStart(5, '0').slice(0, 5);
+                const uom = (item.uom || "CS").toUpperCase().substring(0, 2).padEnd(2, ' ');
+                const units = String(Number(item.units_case) || 1).padStart(6, '0').slice(0, 6);
+                const qty = String(Number(item.qty_ordered) || 0).padStart(4, '0').slice(0, 4);
+                const retail = String(Math.round(this.calculateRetail(item) * 100)).padStart(5, '0').slice(0, 5);
+                return `B${upc}${desc}${sku}${cost}${uom}${units}+${qty}${retail}001`;
+            }
+        };
 
-        function renderDisplay() {
-            if (extractedItems.length === 0) return;
+        /**
+         * SECTION 2: UI CONTROLLER
+         */
+        const UI = {
+            toggleSettings: function() {
+                const panel = document.getElementById('settingsOverlay');
+                panel.classList.toggle('translate-x-full');
+            },
 
-            const total = extractedItems.reduce((sum, item) => sum + (Number(item.net_case_price) * Number(item.qty_ordered) || 0), 0);
-            
-            document.getElementById('grandTotal').innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(total);
-            document.getElementById('filenamePreview').innerText = buildFilename();
-            document.getElementById('vendorDisplay').innerText = `INV DATE: ${invoiceDateStr} | VENDOR: ${vendorName}`;
-            
-            document.getElementById('summaryCard').classList.remove('hidden');
-            document.getElementById('topDownloadBtn').classList.remove('hidden');
-            document.getElementById('tableContainer').classList.remove('hidden');
+            saveSettings: function() {
+                const key = document.getElementById('apiKeyInput').value;
+                const marginVal = document.getElementById('marginInput').value;
+                localStorage.setItem('snap_edi_key', key);
+                localStorage.setItem('snap_edi_margin', marginVal);
+                Engine.margin = (Number(marginVal) / 100) + 1;
+                this.toggleSettings();
+                alert("Settings Saved!");
+            },
 
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = extractedItems.map(item => `
-                <tr class="hover:bg-indigo-50/30 transition">
-                    <td class="px-6 py-5 font-mono text-xs text-slate-500">${item.upc}</td>
-                    <td class="px-6 py-5">
-                        <div class="font-bold text-slate-800 uppercase text-xs">${item.description}</div>
-                        <div class="text-[9px] text-slate-400 font-bold uppercase">Pack: ${item.units_case} | SRP: ${Number(item.suggested_retail) > 0 ? 'YES' : 'CALC'}</div>
-                    </td>
-                    <td class="px-6 py-5 font-black text-indigo-600 text-xs">$${Number(item.net_case_price).toFixed(2)}</td>
-                    <td class="px-6 py-5 font-black text-slate-800 text-center">${item.qty_ordered}</td>
-                    <td class="px-6 py-5 font-black text-emerald-600 text-xs">$${calculateRetail(item).toFixed(2)}</td>
-                </tr>
-            `).join('');
-        }
+            loadSettings: function() {
+                const key = localStorage.getItem('snap_edi_key');
+                const m = localStorage.getItem('snap_edi_margin') || "35";
+                if(key) document.getElementById('apiKeyInput').value = key;
+                document.getElementById('marginInput').value = m;
+                Engine.margin = (Number(m) / 100) + 1;
+            },
 
+            updateDashboard: function() {
+                const total = Engine.items.reduce((sum, item) => sum + (Number(item.net_case_price) * Number(item.qty_ordered) || 0), 0);
+                document.getElementById('grandTotal').innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(total);
+                document.getElementById('filenamePreview').innerText = Engine.buildFilename();
+                document.getElementById('vendorDisplay').innerText = `INV DATE: ${Engine.invoiceDate} | VENDOR: ${Engine.vendorName}`;
+                
+                document.getElementById('summaryCard').classList.remove('hidden');
+                document.getElementById('topDownloadBtn').classList.remove('hidden');
+                document.getElementById('tableContainer').classList.remove('hidden');
+
+                const tbody = document.getElementById('tableBody');
+                tbody.innerHTML = Engine.items.map(item => `
+                    <tr class="hover:bg-indigo-50/30 transition">
+                        <td class="px-6 py-5 font-mono text-xs text-slate-500">${item.upc}</td>
+                        <td class="px-6 py-5">
+                            <div class="font-bold text-slate-800 uppercase text-xs">${item.description}</div>
+                            <div class="text-[9px] text-slate-400 font-bold uppercase">Pack: ${item.units_case}</div>
+                        </td>
+                        <td class="px-6 py-5 font-black text-indigo-600 text-xs">$${Number(item.net_case_price).toFixed(2)}</td>
+                        <td class="px-6 py-5 font-black text-slate-800 text-center">${item.qty_ordered}</td>
+                        <td class="px-6 py-5 font-black text-emerald-600 text-xs">$${Engine.calculateRetail(item).toFixed(2)}</td>
+                    </tr>
+                `).join('');
+            }
+        };
+
+        /**
+         * SECTION 3: SYSTEM INTEGRATION
+         */
         async function processFile(input) {
             const file = input.files[0];
-            const apiKey = localStorage.getItem('gemini_api_key');
-            if(!apiKey) return alert("Save your Gemini API Key in localStorage first.");
+            const apiKey = localStorage.getItem('snap_edi_key');
+            if(!apiKey) return alert("Please set your API Key in Settings first.");
 
             document.getElementById('loader').classList.remove('hidden');
             
@@ -143,7 +202,7 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         contents: [{ parts: [
-                            { text: "Extract invoice JSON. 1. vendor_name (found at top), 2. invoice_date (found on invoice, format as MMM-DD-YY e.g. JAN-25-26), 3. items array: upc (11 digits), description, sku, net_case_price, units_case, qty_ordered (cases), suggested_retail (single unit price, set to 0 if not found)." },
+                            { text: "Extract invoice JSON: vendor_name, invoice_date (MMM-DD-YY), items (upc, description, sku, net_case_price, units_case, qty_ordered, suggested_retail)." },
                             { inlineData: { mimeType: file.type, data: b64 } }
                         ]}],
                         generationConfig: { responseMimeType: "application/json" }
@@ -152,31 +211,37 @@
 
                 const data = await res.json();
                 const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
-                vendorName = parsed.vendor_name || "VENDOR";
-                invoiceDateStr = parsed.invoice_date || "UNKNOWN";
-                extractedItems = parsed.items;
-                renderDisplay();
-            } catch (err) { alert("Scan Error: " + err.message); }
+                
+                Engine.vendorName = parsed.vendor_name || "VENDOR";
+                Engine.invoiceDate = parsed.invoice_date || "UNKNOWN";
+                Engine.items = parsed.items;
+
+                UI.updateDashboard();
+            } catch (err) { alert("Error: " + err.message); }
             finally { document.getElementById('loader').classList.add('hidden'); }
         }
 
         function downloadEDI() {
-            const filename = buildFilename();
-            const text = extractedItems.map(item => generateEDILine(item)).join('\n');
+            const filename = Engine.buildFilename();
+            const text = Engine.items.map(item => Engine.generateEDILine(item)).join('\n');
             const blob = new Blob([text], { type: 'text/plain' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
             a.download = filename;
             a.click();
-
+            
+            // Log entry
             const log = document.getElementById('downloadLog');
             const entry = document.createElement('div');
             entry.className = "bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm border border-slate-100";
-            entry.innerHTML = `<div><div class="text-[10px] font-black text-indigo-600 uppercase font-mono">${filename}</div><div class="text-[9px] text-slate-400 uppercase font-bold">Exported: ${new Date().toLocaleTimeString()}</div></div><div class="text-sm font-black text-slate-900">${document.getElementById('grandTotal').innerText}</div>`;
+            entry.innerHTML = `<div><div class="text-[10px] font-black text-indigo-600 uppercase font-mono">${filename}</div><div class="text-[9px] text-slate-400 uppercase font-bold">${new Date().toLocaleTimeString()}</div></div><div class="text-sm font-black text-slate-900">${document.getElementById('grandTotal').innerText}</div>`;
             log.prepend(entry);
         }
 
         function toBase64(f) { return new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(f); r.onload = () => res(r.result); r.onerror = e => rej(e); }); }
+
+        // Initial Load
+        UI.loadSettings();
     </script>
 </body>
 </html>
