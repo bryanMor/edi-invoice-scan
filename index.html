@@ -305,33 +305,67 @@
         }
 
         async function syncToCloud() {
-            const token = localStorage.getItem('gh_token');
-            const repo = localStorage.getItem('gh_repo');
-            if(!token || !repo) return alert("Setup GitHub in Settings first!");
+    const token = localStorage.getItem('gh_token');
+    const repo = localStorage.getItem('gh_repo');
+    const syncBtn = event.currentTarget; // Captures the button you just clicked
 
-            const filename = Engine.buildFilename();
-            const content = Engine.items.map(item => Engine.generateEDILine(item)).join('\n');
-            const logId = "sync-" + Date.now();
-            UI.addToLog(filename, document.getElementById('grandTotal')?.innerText, logId);
-            
-            const statusEl = document.getElementById(logId)?.querySelector('.sync-status');
-            if(statusEl) statusEl.innerText = "⏳ Syncing...";
+    if(!token || !repo) {
+        alert("Setup GitHub in Settings first!");
+        return;
+    }
 
-            try {
-                const res = await fetch(`https://api.github.com/repos/${repo}/contents/invoices/${filename}`, {
-                    method: 'PUT',
-                    headers: {'Authorization': `token ${token}`, 'Content-Type': 'application/json'},
-                    body: JSON.stringify({ message: `Sync: ${filename}`, content: btoa(unescape(encodeURIComponent(content))) })
-                });
-                if(res.ok && statusEl) {
-                    statusEl.innerText = "☁️ Synced";
-                    statusEl.className = "sync-status text-[9px] font-black uppercase text-emerald-500";
-                } else throw new Error();
-            } catch { if(statusEl) { statusEl.innerText = "❌ Failed"; statusEl.className = "sync-status text-[9px] font-black uppercase text-red-500"; }}
+    // 1. IMMEDIATE FEEDBACK: Disable button and change appearance
+    const originalContent = syncBtn.innerHTML;
+    syncBtn.disabled = true;
+    syncBtn.classList.replace('bg-indigo-600', 'bg-slate-400');
+    syncBtn.innerHTML = `<span>⏳</span><span class="text-xs uppercase font-black tracking-widest">Syncing...</span>`;
+
+    const filename = Engine.buildFilename();
+    const content = Engine.items.map(item => Engine.generateEDILine(item)).join('\n');
+    const logId = "sync-" + Date.now();
+    UI.addToLog(filename, document.getElementById('grandTotal')?.innerText, logId);
+    
+    const statusEl = document.getElementById(logId)?.querySelector('.sync-status');
+
+    try {
+        const utf8Bytes = new TextEncoder().encode(content);
+        const b64Content = btoa(String.fromCharCode(...utf8Bytes));
+
+        const res = await fetch(`https://api.github.com/repos/${repo}/contents/invoices/${encodeURIComponent(filename)}`, {
+            method: 'PUT',
+            headers: {'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json'},
+            body: JSON.stringify({ message: `Sync: ${filename}`, content: b64Content })
+        });
+
+        if (res.ok) {
+            // 2. SUCCESS FEEDBACK
+            syncBtn.classList.replace('bg-slate-400', 'bg-emerald-500');
+            syncBtn.innerHTML = `<span>✅</span><span class="text-xs uppercase font-black">Synced to Cloud</span>`;
+            if(statusEl) {
+                statusEl.innerText = "☁️ Synced";
+                statusEl.className = "sync-status text-[9px] font-black uppercase text-emerald-500";
+            }
+        } else {
+            const errorData = await res.json();
+            throw new Error(errorData.message || "Failed");
         }
+    } catch (err) {
+        // 3. ERROR FEEDBACK
+        syncBtn.disabled = false;
+        syncBtn.classList.replace('bg-slate-400', 'bg-red-500');
+        syncBtn.innerHTML = `<span>❌</span><span class="text-xs uppercase font-black italic">Retry Sync</span>`;
+        if(statusEl) {
+            statusEl.innerText = "❌ " + err.message;
+            statusEl.className = "sync-status text-[9px] font-black uppercase text-red-500";
+        }
+        console.error(err);
+    }
+}
+
 
         function toBase64(f) { return new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(f); r.onload = () => res(r.result); r.onerror = e => rej(e); }); }
         UI.loadSettings();
     </script>
 </body>
 </html>
+
