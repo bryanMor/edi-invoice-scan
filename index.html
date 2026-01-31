@@ -284,19 +284,39 @@
         }
 
         async function downloadEDI() {
-            const filename = Engine.buildFilename();
-            const content = Engine.items.map(item => Engine.generateEDILine(item)).join('\n');
-            const file = new File([content], filename, { type: 'text/plain' });
+    const filename = Engine.buildFilename();
+    const content = Engine.items.map(item => Engine.generateEDILine(item)).join('\n');
+    const amount = document.getElementById('grandTotal').innerText || "$0.00";
 
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                try { await navigator.share({ files: [file], title: filename }); } catch (e) {}
-            } else {
-                const blob = new Blob([content], { type: 'text/plain' });
-                const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: filename });
-                a.click();
-            }
-            UI.addToLog(filename, document.getElementById('grandTotal').innerText, "dl-" + Date.now());
+    // 1. Create a proper File object
+    const file = new File([content], filename, { type: 'text/plain' });
+
+    // 2. Priority: Use the System Popup (iPhone/Android)
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({
+                files: [file],
+                title: filename
+            });
+            UI.addToLog(filename, amount, "dl-" + Date.now());
+            return; // EXIT HERE so the second download doesn't happen
+        } catch (err) {
+            console.log("Share cancelled or failed");
+            return; // Exit if user cancels
         }
+    } 
+    
+    // 3. Fallback: Only for Desktop Computers
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    UI.addToLog(filename, amount, "dl-" + Date.now());
+}
+
 
         async function syncToCloud() {
             const token = localStorage.getItem('gh_token');
@@ -337,3 +357,4 @@
     </script>
 </body>
 </html>
+
