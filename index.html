@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SnapEDI Pro - Ultimate v1.5</title>
+    <title>SnapEDI Pro - v1.6</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .edi-font { font-family: 'Courier New', Courier, monospace; }
         .scroll-hide::-webkit-scrollbar { display: none; }
         .settings-panel { transition: transform 0.3s ease-in-out; }
         .photo-bubble-container { position: relative; flex-shrink: 0; }
@@ -25,7 +24,7 @@
     <div id="settingsOverlay" class="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 transform translate-x-full settings-panel border-l border-slate-200 overflow-y-auto">
         <div class="p-6">
             <div class="flex justify-between items-center mb-8">
-                <h2 class="text-xl font-black text-slate-800 tracking-tight">Configuration</h2>
+                <h2 class="text-xl font-black text-slate-800 tracking-tight">Settings</h2>
                 <button onclick="UI.toggleSettings()" class="text-slate-400 hover:text-slate-600 p-2 text-2xl">✕</button>
             </div>
             
@@ -34,23 +33,16 @@
                     <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Gemini API Key</label>
                     <input type="password" id="apiKeyInput" placeholder="Enter Key..." class="w-full bg-slate-100 border-none rounded-xl p-3 text-sm">
                 </div>
-                
-                <div>
-                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">GitHub Cloud Sync (Classic Token Recommended)</label>
-                    <input type="password" id="ghTokenInput" placeholder="ghp_..." class="w-full bg-slate-100 border-none rounded-xl p-3 text-sm mb-2">
-                    <input type="text" id="ghRepoInput" placeholder="username/repo-name" class="w-full bg-slate-100 border-none rounded-xl p-3 text-sm mb-3">
-                    <button onclick="UI.testGitHub()" class="w-full bg-slate-800 text-white text-[10px] font-black py-2 rounded-lg uppercase tracking-widest hover:bg-black transition">Test Connection</button>
-                </div>
 
                 <div class="border-t border-slate-100 pt-6">
                     <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Device Transfer</label>
                     <div class="flex gap-2">
-                        <button onclick="UI.exportConfig()" class="flex-1 bg-slate-100 text-slate-600 text-[9px] font-black py-2 rounded-lg uppercase tracking-tight hover:bg-slate-200 transition">Copy Setup</button>
-                        <button onclick="UI.importConfig()" class="flex-1 bg-slate-100 text-slate-600 text-[9px] font-black py-2 rounded-lg uppercase tracking-tight hover:bg-slate-200 transition">Paste Setup</button>
+                        <button onclick="UI.exportConfig()" class="flex-1 bg-slate-100 text-slate-600 text-[9px] font-black py-2 rounded-lg uppercase tracking-tight hover:bg-slate-200 transition">Copy Key</button>
+                        <button onclick="UI.importConfig()" class="flex-1 bg-slate-100 text-slate-600 text-[9px] font-black py-2 rounded-lg uppercase tracking-tight hover:bg-slate-200 transition">Paste Key</button>
                     </div>
                 </div>
 
-                <button onclick="UI.saveSettings()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-100 mt-4">Save All Changes</button>
+                <button onclick="UI.saveSettings()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-100 mt-4">Save Changes</button>
             </div>
         </div>
     </div>
@@ -60,7 +52,7 @@
             <div class="flex justify-between items-center">
                 <div>
                     <h1 class="text-3xl font-black text-indigo-600 italic leading-none">SnapEDI</h1>
-                    <p id="vendorDisplay" class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2 font-mono italic">Multi-Page Scanner</p>
+                    <p id="vendorDisplay" class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2 font-mono italic">Batch Document Scanner</p>
                 </div>
                 <button onclick="UI.toggleSettings()" class="p-4 bg-white shadow-sm border border-slate-100 rounded-2xl hover:bg-slate-50 transition">⚙️</button>
             </div>
@@ -81,25 +73,17 @@
             <input type="file" id="fileInput" class="hidden" multiple onchange="addToQueue(this)">
         </div>
 
-        <div id="summaryCard" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div id="summaryCard" class="hidden mb-8">
             <div class="bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
                 <p class="text-slate-400 text-[10px] font-black uppercase mb-1 tracking-widest">Grand Total</p>
                 <h2 id="grandTotal" class="text-4xl font-black text-emerald-400 tracking-tighter font-mono">$0.00</h2>
             </div>
-            <div class="bg-white border border-slate-200 p-8 rounded-[2.5rem] shadow-sm flex flex-col justify-center">
-                <p class="text-slate-400 text-[10px] font-black uppercase mb-2 tracking-widest">EDI Filename</p>
-                <div id="filenamePreview" class="font-mono text-[10px] bg-slate-50 p-3 rounded-xl text-indigo-600 font-bold border border-indigo-50">---</div>
-            </div>
         </div>
 
-        <div id="actionButtons" class="hidden flex flex-col md:flex-row gap-4 mb-8">
-            <button id="dlBtn" onclick="downloadEDI()" class="flex-1 bg-white border-2 border-slate-800 text-slate-800 px-6 py-5 rounded-[2.5rem] font-black shadow-sm active:scale-95 transition flex items-center justify-center gap-3">
+        <div id="actionButtons" class="hidden mb-8">
+            <button id="dlBtn" onclick="downloadEDI()" class="w-full bg-indigo-600 text-white px-6 py-5 rounded-[2.5rem] font-black shadow-xl shadow-indigo-100 active:scale-95 transition flex items-center justify-center gap-3">
                 <span class="text-xl">📂</span>
                 <span class="text-xs uppercase font-black">Save to Device / Files</span>
-            </button>
-            <button id="syncBtn" onclick="syncToCloud()" class="flex-1 bg-indigo-600 text-white px-6 py-5 rounded-[2.5rem] font-black shadow-xl shadow-indigo-100 active:scale-95 transition flex items-center justify-center gap-3">
-                <span class="text-xl">☁️</span>
-                <span id="syncText" class="text-xs uppercase font-black">Sync to GitHub Cloud</span>
             </button>
         </div>
 
@@ -146,8 +130,8 @@
             },
 
             buildFilename: function() {
-                const cleanVendor = this.vendorName.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase().substring(0, 10).padEnd(10, ' ');
-                return `${cleanVendor} - (${this.invoiceDate}).txt`;
+                const cleanVendor = this.vendorName.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase().substring(0, 10).trim();
+                return `${cleanVendor}_${this.invoiceDate}.txt`;
             },
 
             generateEDILine: function(item) {
@@ -167,50 +151,34 @@
 
             saveSettings: function() {
                 localStorage.setItem('snap_edi_key', document.getElementById('apiKeyInput')?.value);
-                localStorage.setItem('gh_token', document.getElementById('ghTokenInput')?.value);
-                localStorage.setItem('gh_repo', document.getElementById('ghRepoInput')?.value);
                 this.toggleSettings();
-                alert("Settings Saved Locally ✅");
+                alert("Settings Saved ✅");
             },
 
             loadSettings: function() {
                 document.getElementById('apiKeyInput').value = localStorage.getItem('snap_edi_key') || "";
-                document.getElementById('ghTokenInput').value = localStorage.getItem('gh_token') || "";
-                document.getElementById('ghRepoInput').value = localStorage.getItem('gh_repo') || "";
             },
 
             exportConfig: function() {
-                const config = { k: localStorage.getItem('snap_edi_key'), t: localStorage.getItem('gh_token'), r: localStorage.getItem('gh_repo') };
-                navigator.clipboard.writeText(btoa(JSON.stringify(config)));
-                alert("Setup copied! Paste it on your other device.");
+                const key = localStorage.getItem('snap_edi_key');
+                if(!key) return alert("No key to copy");
+                navigator.clipboard.writeText(btoa(key));
+                alert("Key copied! Paste on other device.");
             },
 
             importConfig: function() {
                 const str = prompt("Paste setup string:");
                 if(!str) return;
                 try {
-                    const c = JSON.parse(atob(str));
-                    localStorage.setItem('snap_edi_key', c.k);
-                    localStorage.setItem('gh_token', c.t);
-                    localStorage.setItem('gh_repo', c.r);
+                    localStorage.setItem('snap_edi_key', atob(str));
                     this.loadSettings();
-                    alert("Imported successfully! ✅");
+                    alert("Key imported! ✅");
                 } catch(e) { alert("Invalid string ❌"); }
-            },
-
-            async testGitHub() {
-                const t = document.getElementById('ghTokenInput')?.value;
-                const r = document.getElementById('ghRepoInput')?.value;
-                try {
-                    const res = await fetch(`https://api.github.com/repos/${r}`, { headers: {'Authorization': `token ${t}`} });
-                    alert(res.ok ? "GitHub Connected ✅" : "Failed. Check Token/Repo ❌");
-                } catch(e) { alert("Network Error"); }
             },
 
             updateDashboard: function() {
                 const total = Engine.items.reduce((sum, item) => sum + (Number(item.net_case_price) * Number(item.qty_ordered) || 0), 0);
                 document.getElementById('grandTotal').innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(total);
-                document.getElementById('filenamePreview').innerText = Engine.buildFilename();
                 
                 document.getElementById('summaryCard')?.classList.remove('hidden');
                 document.getElementById('tableContainer')?.classList.remove('hidden');
@@ -226,11 +194,10 @@
                     </tr>`).join('');
             },
 
-            addToLog: function(name, amount, id) {
+            addToLog: function(name, amount) {
                 const entry = document.createElement('div');
-                entry.id = id;
                 entry.className = "bg-white p-5 rounded-[2rem] flex justify-between items-center shadow-sm border border-slate-100 mx-1";
-                entry.innerHTML = `<div><div class="text-[10px] font-black text-slate-900 uppercase font-mono">${name}</div><div class="flex gap-2 items-center mt-1"><span class="text-[9px] text-slate-400 font-bold">${new Date().toLocaleTimeString()}</span><span class="sync-status text-[9px] font-black uppercase tracking-tighter"></span></div></div><div class="text-sm font-black text-indigo-600">${amount}</div>`;
+                entry.innerHTML = `<div><div class="text-[10px] font-black text-slate-900 uppercase font-mono">${name}</div><div class="text-[9px] text-slate-400 font-bold mt-1">${new Date().toLocaleTimeString()}</div></div><div class="text-sm font-black text-indigo-600">${amount}</div>`;
                 document.getElementById('downloadLog')?.prepend(entry);
             }
         };
@@ -263,7 +230,7 @@
 
         async function processBatch() {
             const apiKey = localStorage.getItem('snap_edi_key');
-            if(!apiKey) return alert("API Key Missing");
+            if(!apiKey) return alert("API Key Missing in Settings");
 
             document.getElementById('loader')?.classList.remove('hidden');
             document.getElementById('processBtn')?.classList.add('hidden');
@@ -279,79 +246,29 @@
                 Engine.items = parsed.items;
                 UI.updateDashboard();
                 clearBatch();
-            } catch (err) { alert("Processing Failed. Check key or photo quality."); document.getElementById('processBtn')?.classList.remove('hidden'); }
+            } catch (err) { alert("AI Error. Check key or photo quality."); document.getElementById('processBtn')?.classList.remove('hidden'); }
             finally { document.getElementById('loader')?.classList.add('hidden'); }
         }
 
         async function downloadEDI() {
-    const filename = Engine.buildFilename();
-    const content = Engine.items.map(item => Engine.generateEDILine(item)).join('\n');
-    const amount = document.getElementById('grandTotal')?.innerText || "$0.00";
-
-    try {
-        const file = new File([content], filename, { type: 'text/plain' });
-
-        // iOS Check
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            // WE ONLY SEND THE FILES ARRAY - Removing title/text stops the second file
-            await navigator.share({
-                files: [file]
-            });
-            UI.addToLog(filename, amount, "dl-" + Date.now());
-            return; 
-        }
-
-        // Desktop Fallback
-        const blob = new Blob([content], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = Object.assign(document.createElement('a'), {
-            href: url,
-            download: filename
-        });
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-        UI.addToLog(filename, amount, "dl-" + Date.now());
-
-    } catch (err) {
-        console.log("Save cancelled.");
-    }
-}
-
-
-
-
-        async function syncToCloud() {
-            const token = localStorage.getItem('gh_token');
-            const repo = localStorage.getItem('gh_repo');
-            const btn = document.getElementById('syncBtn');
-            const txt = document.getElementById('syncText');
-
-            if(!token || !repo) return alert("Setup GitHub first!");
-
-            btn.disabled = true;
-            btn.classList.replace('bg-indigo-600', 'bg-slate-400');
-            txt.innerText = "Syncing...";
-
             const filename = Engine.buildFilename();
             const content = Engine.items.map(item => Engine.generateEDILine(item)).join('\n');
-            const logId = "sync-" + Date.now();
-            UI.addToLog(filename, document.getElementById('grandTotal').innerText, logId);
-            const statusEl = document.getElementById(logId)?.querySelector('.sync-status');
+            const amount = document.getElementById('grandTotal').innerText;
+            const file = new File([content], filename, { type: 'text/plain' });
 
-            try {
-                const b64 = btoa(unescape(encodeURIComponent(content)));
-                const res = await fetch(`https://api.github.com/repos/${repo}/contents/invoices/${encodeURIComponent(filename)}`, { method: 'PUT', headers: {'Authorization': `token ${token}`, 'Content-Type': 'application/json'}, body: JSON.stringify({ message: `Sync: ${filename}`, content: b64 }) });
-                if(res.ok) {
-                    btn.classList.replace('bg-slate-400', 'bg-emerald-500');
-                    txt.innerText = "Synced to Cloud";
-                    if(statusEl) statusEl.innerText = "☁️ Synced";
-                } else throw new Error();
-            } catch {
-                btn.disabled = false;
-                btn.classList.replace('bg-slate-400', 'bg-red-500');
-                txt.innerText = "Sync Failed - Retry";
-                if(statusEl) statusEl.innerText = "❌ Error";
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                try { 
+                    await navigator.share({ files: [file] }); 
+                    UI.addToLog(filename, amount);
+                    return; // Prevent duplicate download stream
+                } catch (e) { return; }
+            } else {
+                const blob = new Blob([content], { type: 'text/plain' });
+                const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: filename });
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 100);
             }
+            UI.addToLog(filename, amount);
         }
 
         function toBase64(f) { return new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(f); r.onload = () => res(r.result); r.onerror = e => rej(e); }); }
@@ -359,6 +276,3 @@
     </script>
 </body>
 </html>
-
-
-
