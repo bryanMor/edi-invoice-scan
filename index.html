@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SnapEDI Pro - v2.0</title>
+    <title>SnapEDI Pro - v2.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .scroll-hide::-webkit-scrollbar { display: none; }
         .settings-panel { transition: transform 0.3s ease-in-out; }
-        .photo-bubble { width: 75px; height: 75px; object-fit: cover; border-radius: 16px; border: 2px solid #6366f1; background: white; }
+        .photo-container { position: relative; flex-shrink: 0; }
+        .del-btn { position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; items-center; justify-center; font-size: 12px; border: 2px solid white; cursor: pointer; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans overflow-x-hidden">
@@ -21,7 +22,7 @@
                     <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Gemini API Key</label>
                     <input type="password" id="apiKeyInput" class="w-full bg-slate-100 rounded-xl p-3 text-sm">
                 </div>
-                <button onclick="UI.saveSettings()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl shadow-lg">Save Changes</button>
+                <button onclick="UI.saveSettings()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl">Save Changes</button>
             </div>
         </div>
     </div>
@@ -30,12 +31,16 @@
         <div class="flex justify-between items-center mb-6">
             <div>
                 <h1 class="text-3xl font-black text-indigo-600 italic">SnapEDI</h1>
-                <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">B-Record Engine v2.0</p>
+                <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Master Lane v2.1</p>
             </div>
             <button onclick="UI.toggleSettings()" class="p-4 bg-white shadow-sm border rounded-2xl">⚙️</button>
         </div>
 
-        <div id="photoQueue" class="flex gap-4 overflow-x-auto py-2 mb-6 scroll-hide min-h-[90px]"></div>
+        <div id="photoQueue" class="flex gap-4 overflow-x-auto py-4 mb-2 scroll-hide min-h-[100px]"></div>
+        
+        <div id="queueControls" class="hidden flex gap-2 mb-6">
+            <button onclick="UI.clearQueue()" class="text-[10px] font-black uppercase text-red-500 bg-red-50 px-4 py-2 rounded-lg">Clear All</button>
+        </div>
 
         <div class="flex gap-3 mb-8">
             <button onclick="document.getElementById('fileInput').click()" class="flex-[2] bg-white border-2 border-indigo-600 text-indigo-600 py-4 rounded-[2rem] font-black uppercase text-xs">Add Page</button>
@@ -43,67 +48,58 @@
             <input type="file" id="fileInput" class="hidden" multiple onchange="addToQueue(this)">
         </div>
 
-        <div id="summaryCard" class="hidden bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-2xl mb-8">
-            <p class="text-slate-400 text-[10px] font-black uppercase mb-1">Grand Total (Net)</p>
+        <div id="summaryCard" class="hidden bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-2xl mb-4">
+            <p class="text-slate-400 text-[10px] font-black uppercase mb-1">Grand Total</p>
             <h2 id="grandTotal" class="text-4xl font-black text-emerald-400 font-mono">$0.00</h2>
         </div>
 
-        <div id="actionButtons" class="hidden mb-8">
-            <button onclick="downloadEDI()" class="w-full bg-indigo-600 text-white py-5 rounded-[2.5rem] font-black shadow-xl flex items-center justify-center gap-3">
-                <span class="text-xs uppercase">Save EDI File</span>
-            </button>
+        <div id="actionButtons" class="hidden grid grid-cols-2 gap-3 mb-8">
+            <button onclick="downloadEDI()" class="bg-indigo-600 text-white py-4 rounded-[2rem] font-black text-xs uppercase shadow-lg">Save EDI</button>
+            <button onclick="processBatch()" class="bg-white border border-slate-200 py-4 rounded-[2rem] font-black text-xs uppercase">Rescan</button>
         </div>
 
-        <div id="loader" class="hidden flex flex-col items-center py-20">
-            <div class="w-14 h-14 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
-            <p class="mt-6 font-black text-indigo-600 animate-pulse uppercase text-[10px] tracking-widest text-center">Identifying Lanes &<br>Extracting B-Records...</p>
+        <div id="loader" class="hidden flex flex-col items-center py-10 text-center">
+            <div class="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+            <p class="font-black text-indigo-600 uppercase text-[10px] tracking-widest">Locking SKU & Price Lanes...</p>
         </div>
 
-        <div id="tableContainer" class="hidden bg-white rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden mb-10">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-slate-50 border-b">
-                        <tr>
-                            <th class="px-8 py-6 font-black text-slate-400 uppercase text-[9px]">UPC (11)</th>
-                            <th class="px-8 py-6 font-black text-slate-400 uppercase text-[9px]">Product</th>
-                            <th class="px-8 py-6 font-black text-slate-400 uppercase text-[9px]">Case Cost</th>
-                            <th class="px-8 py-6 font-black text-slate-400 uppercase text-[9px]">Qty</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody" class="divide-y divide-slate-50"></tbody>
-                </table>
-            </div>
+        <div class="mt-10">
+            <h3 class="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest px-2">Recent History (2 Weeks)</h3>
+            <div id="historyList" class="space-y-3"></div>
         </div>
     </main>
 
     <script>
         let fileQueue = [];
+        let history = JSON.parse(localStorage.getItem('snap_history') || '[]');
+
         const Engine = {
             vendorName: "VENDOR",
+            invoiceDate: "JAN-01-26",
             items: [],
             margin: 1.35,
 
+            getFileName: function() {
+                const words = this.vendorName.toUpperCase().split(' ').slice(0, 2).join('');
+                const shortName = words.substring(0, 14);
+                return `${shortName}_${this.invoiceDate}.txt`;
+            },
+
             generateEDILine: function(item) {
-                // RULE: Strip all symbols for numeric positions
                 const onlyNums = (val) => String(val || "0").replace(/\D/g, "");
                 const toCents = (val) => Math.round((Number(val) || 0) * 100).toString().replace(/\D/g, "");
 
-                // Numeric Lanes (Numbers Only)
                 let upc = onlyNums(item.upc).padStart(11, '0').slice(-11);
                 let sku = onlyNums(item.sku).padStart(6, '0').slice(-6);
                 let qty = onlyNums(item.qty_ordered).padStart(4, '0').slice(-4);
                 let units = onlyNums(item.units_case || 1).padStart(6, '0').slice(-6);
                 let cost = toCents(item.net_case_price).padStart(5, '0').slice(-5);
                 
-                // SRP logic
                 const srpVal = Number(item.suggested_retail) || 0;
                 const retailCalc = srpVal > 0 ? srpVal : ((Number(item.net_case_price) || 0) / (Number(item.units_case) || 1)) * this.margin;
                 let retail = toCents(retailCalc).padStart(5, '0').slice(-5);
 
-                // Text Lanes (Symbols allowed)
                 const desc = String(item.description || "ZERO DATA").toUpperCase().substring(0, 26).padEnd(26, ' ');
-
-                // Final Construction
                 return `B${upc}${desc}${sku}${cost}CS${units}+${qty}${retail}001`;
             }
         };
@@ -111,35 +107,64 @@
         const UI = {
             toggleSettings: () => document.getElementById('settingsOverlay').classList.toggle('translate-x-full'),
             saveSettings: () => { localStorage.setItem('snap_edi_key', document.getElementById('apiKeyInput').value); UI.toggleSettings(); },
-            updateDashboard: () => {
-                const total = Engine.items.reduce((sum, item) => sum + (Number(item.net_case_price || 0) * Number(item.qty_ordered || 0)), 0);
-                document.getElementById('grandTotal').innerText = `$${total.toFixed(2)}`;
-                document.getElementById('summaryCard').classList.remove('hidden');
-                document.getElementById('tableContainer').classList.remove('hidden');
-                document.getElementById('actionButtons').classList.remove('hidden');
-                document.getElementById('tableBody').innerHTML = Engine.items.map(item => `
-                    <tr>
-                        <td class="px-8 py-6 font-mono text-xs text-indigo-600 font-bold">${String(item.upc || 0).replace(/\D/g, '').slice(-11)}</td>
-                        <td class="px-8 py-6 font-bold uppercase text-xs">${item.description || 'MISSING DATA'}</td>
-                        <td class="px-8 py-6 font-black">$${(Number(item.net_case_price) || 0).toFixed(2)}</td>
-                        <td class="px-8 py-6 font-black text-center">${item.qty_ordered || 0}</td>
-                    </tr>`).join('');
+            
+            clearQueue: () => { fileQueue = []; document.getElementById('photoQueue').innerHTML = ''; document.getElementById('queueControls').classList.add('hidden'); document.getElementById('processBtn').classList.add('hidden'); },
+            
+            removePhoto: (index) => {
+                fileQueue.splice(index, 1);
+                UI.renderQueue();
+            },
+
+            renderQueue: () => {
+                const q = document.getElementById('photoQueue');
+                q.innerHTML = fileQueue.map((f, i) => `
+                    <div class="photo-container">
+                        <img src="data:${f.mime};base64,${f.data}" class="photo-bubble shadow-md">
+                        <button onclick="UI.removePhoto(${i})" class="del-btn">×</button>
+                    </div>
+                `).join('');
+                document.getElementById('processBtn').classList.toggle('hidden', fileQueue.length === 0);
+                document.getElementById('queueControls').classList.toggle('hidden', fileQueue.length === 0);
+            },
+
+            updateHistory: (newEntry = null) => {
+                if(newEntry) {
+                    history.unshift(newEntry);
+                    if(history.length > 20) history.pop();
+                }
+                // Cleanup 14-day old files
+                const twoWeeksAgo = Date.now() - (14 * 24 * 60 * 60 * 1000);
+                history = history.filter(h => h.timestamp > twoWeeksAgo);
+                localStorage.setItem('snap_history', JSON.stringify(history));
+
+                document.getElementById('historyList').innerHTML = history.map((h, i) => `
+                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex justify-between items-center">
+                        <div>
+                            <p class="text-xs font-black text-indigo-600">${h.filename}</p>
+                            <p class="text-[9px] text-slate-400 font-bold uppercase">${new Date(h.timestamp).toLocaleDateString()}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="downloadFromHistory(${i})" class="p-3 bg-slate-50 rounded-xl">💾</button>
+                            <button onclick="deleteHistory(${i})" class="p-3 bg-red-50 rounded-xl">🗑️</button>
+                        </div>
+                    </div>
+                `).join('');
             }
         };
 
         async function processBatch() {
             const apiKey = localStorage.getItem('snap_edi_key');
-            if(!apiKey) return alert("Please add your Gemini API Key in Settings.");
+            if(!apiKey) return alert("Add API Key in Settings");
             document.getElementById('loader').classList.remove('hidden');
-            document.getElementById('processBtn').classList.add('hidden');
             
             try {
                 const parts = [
-                    { text: `Extract data using "Full Lane Locking":
-                        1. ANCHOR: Use the first item to define the 11-digit UPC (deep search description) and lowest Case Cost column.
-                        2. LOCK LANES: Lock vertical paths for UPC, SKU, Quantity, Case Cost, and SRP.
-                        3. ZERO-FILL: If a column has no data, return 0 for numbers and "ZERO DATA" for description.
-                        4. Return JSON: { vendor_name, invoice_date, items: [{upc, description, sku, net_case_price, units_case, qty_ordered, suggested_retail}] }` },
+                    { text: `Extract JSON using "Strict Lane Locking":
+                        1. ANCHOR: Use the first item to find the 11-digit UPC and Case Cost.
+                        2. SKU SEARCH: Look specifically for columns labeled "ITEM#", "PROD", or "SKU". Extract this 5-6 digit code.
+                        3. LOCK LANES: Follow these specific vertical lanes for every line.
+                        4. ZERO-FILL: Return 0 if a field is blank.
+                        5. DATA: Return vendor_name, invoice_date (MMM-DD-YY), and items: [{upc, description, sku, net_case_price, units_case, qty_ordered, suggested_retail}].` },
                     ...fileQueue.map(f => ({ inlineData: { mimeType: f.mime, data: f.data } }))
                 ];
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, { 
@@ -149,24 +174,52 @@
                 });
                 const data = await res.json();
                 const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
+                
                 Engine.vendorName = parsed.vendor_name || "VENDOR";
+                Engine.invoiceDate = parsed.invoice_date || "JAN-01-26";
                 Engine.items = parsed.items;
-                UI.updateDashboard();
-            } catch (e) { alert("Processing error. Check your API key or image quality."); }
+
+                const total = Engine.items.reduce((sum, item) => sum + (Number(item.net_case_price || 0) * Number(item.qty_ordered || 0)), 0);
+                document.getElementById('grandTotal').innerText = `$${total.toFixed(2)}`;
+                document.getElementById('summaryCard').classList.remove('hidden');
+                document.getElementById('actionButtons').classList.remove('hidden');
+                
+                // Add to history
+                const ediContent = Engine.items.map(i => Engine.generateEDILine(i)).join('\n');
+                UI.updateHistory({
+                    filename: Engine.getFileName(),
+                    content: ediContent,
+                    timestamp: Date.now()
+                });
+
+            } catch (e) { alert("Processing Error. Check connection/key."); }
             finally { document.getElementById('loader').classList.add('hidden'); }
         }
 
-        async function downloadEDI() {
+        function downloadEDI() {
             const content = Engine.items.map(i => Engine.generateEDILine(i)).join('\n');
-            const filename = `${Engine.vendorName.replace(/\s/g,'')}_EDI.txt`;
-            const file = new File([content], filename, { type: 'text/plain' });
+            saveFile(Engine.getFileName(), content);
+        }
+
+        function downloadFromHistory(index) {
+            const entry = history[index];
+            saveFile(entry.filename, entry.content);
+        }
+
+        function deleteHistory(index) {
+            history.splice(index, 1);
+            UI.updateHistory();
+        }
+
+        async function saveFile(name, text) {
+            const file = new File([text], name, { type: 'text/plain' });
             if (navigator.share && navigator.canShare({ files: [file] })) {
                 await navigator.share({ files: [file] });
-                return;
+            } else {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(new Blob([text]));
+                a.download = name; a.click();
             }
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(new Blob([content]));
-            a.download = filename; a.click();
         }
 
         async function addToQueue(input) {
@@ -175,14 +228,13 @@
                 reader.readAsDataURL(file);
                 reader.onload = () => {
                     fileQueue.push({ mime: file.type, data: reader.result.split(',')[1] });
-                    const img = document.createElement('img');
-                    img.src = reader.result; img.className = "photo-bubble shadow-sm";
-                    document.getElementById('photoQueue').appendChild(img);
-                    document.getElementById('processBtn').classList.remove('hidden');
+                    UI.renderQueue();
                 };
             }
         }
+
         document.getElementById('apiKeyInput').value = localStorage.getItem('snap_edi_key') || "";
+        UI.updateHistory();
     </script>
 </body>
 </html>
