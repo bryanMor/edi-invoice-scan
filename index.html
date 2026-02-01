@@ -3,50 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SnapEDI Pro - v2.3</title>
+    <title>SnapEDI Pro - v2.4</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .scroll-hide::-webkit-scrollbar { display: none; }
         .settings-panel { transition: transform 0.3s ease-in-out; }
         
-        /* Vertical Thumbnail Layout - Optimized for 4+ Across */
-        .photo-container { position: relative; flex: 0 0 60px; }
+        /* Optimized for exactly 4 thumbnails across */
+        .photo-container { position: relative; flex: 0 0 85px; }
         .photo-bubble { 
-            width: 60px; 
-            height: 90px; 
+            width: 85px; 
+            height: 125px; 
             object-fit: cover; 
-            border-radius: 8px; 
-            border: 1.5px solid #e2e8f0; 
+            border-radius: 10px; 
+            border: 2px solid #e2e8f0; 
             background: white; 
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
         }
         .del-btn { 
             position: absolute; 
-            top: -6px; 
-            right: -6px; 
+            top: -8px; 
+            right: -8px; 
             background: #ef4444; 
             color: white; 
             border-radius: 50%; 
-            width: 20px; 
-            height: 20px; 
+            width: 24px; 
+            height: 24px; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
             font-size: 14px; 
             font-weight: bold;
             border: 2px solid white; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             z-index: 10;
         }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans overflow-x-hidden">
 
-    <div id="settingsOverlay" class="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 transform translate-x-full settings-panel border-l border-slate-200 overflow-y-auto">
+    <div id="settingsOverlay" class="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 transform translate-x-full settings-panel border-l border-slate-200">
         <div class="p-6">
             <h2 class="text-xl font-black mb-8">Settings</h2>
             <div class="space-y-6">
                 <div>
-                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Gemini API Key</label>
+                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest">Gemini API Key</label>
                     <input type="password" id="apiKeyInput" class="w-full bg-slate-100 rounded-xl p-3 text-sm border focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
                 <button onclick="UI.saveSettings()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl shadow-lg">Save Changes</button>
@@ -58,17 +58,17 @@
         <div class="flex justify-between items-center mb-6">
             <div>
                 <h1 class="text-3xl font-black text-indigo-600 italic leading-none">SnapEDI</h1>
-                <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">B-Record Engine v2.3</p>
+                <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">B-Record Engine v2.4</p>
             </div>
             <button onclick="UI.toggleSettings()" class="p-4 bg-white shadow-sm border rounded-2xl">⚙️</button>
         </div>
 
         <div class="mb-6">
-            <div id="queueHeader" class="hidden flex justify-between items-center mb-2 px-1">
-                <span class="text-[10px] font-black uppercase text-slate-400">Scan Queue</span>
-                <button onclick="UI.clearQueue()" class="text-[10px] font-black uppercase text-red-500">Clear All</button>
+            <div id="queueHeader" class="hidden flex justify-between items-center mb-3 px-1">
+                <span class="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Pages Ready for Batch</span>
+                <button onclick="UI.clearQueue()" class="text-[10px] font-black uppercase text-red-500 bg-red-50 px-3 py-1 rounded-full">Clear All</button>
             </div>
-            <div id="photoQueue" class="flex gap-3 overflow-x-auto py-2 scroll-hide min-h-[100px]"></div>
+            <div id="photoQueue" class="flex gap-4 overflow-x-auto py-2 scroll-hide min-h-[140px]"></div>
         </div>
 
         <div class="flex gap-3 mb-8">
@@ -78,7 +78,7 @@
         </div>
 
         <div id="summaryCard" class="hidden bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-2xl mb-4">
-            <p class="text-slate-400 text-[10px] font-black uppercase mb-1">Grand Total (Net)</p>
+            <p class="text-slate-400 text-[10px] font-black uppercase mb-1">Grand Total (Net Paid)</p>
             <h2 id="grandTotal" class="text-4xl font-black text-emerald-400 font-mono">$0.00</h2>
         </div>
 
@@ -89,11 +89,11 @@
 
         <div id="loader" class="hidden flex flex-col items-center py-10 text-center">
             <div class="w-10 h-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-            <p class="font-black text-indigo-600 uppercase text-[9px] tracking-widest">Identifying SKU & UPC Lanes...</p>
+            <p class="font-black text-indigo-600 uppercase text-[9px] tracking-widest">Calculating Net Costs...</p>
         </div>
 
-        <div class="mt-8 border-t pt-8">
-            <h3 class="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest px-1">Extraction History</h3>
+        <div class="mt-8 pt-8 border-t">
+            <h3 class="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest px-1">History (2 Weeks)</h3>
             <div id="historyList" class="space-y-3"></div>
         </div>
     </main>
@@ -136,7 +136,6 @@
         const UI = {
             toggleSettings: () => document.getElementById('settingsOverlay').classList.toggle('translate-x-full'),
             saveSettings: () => { localStorage.setItem('snap_edi_key', document.getElementById('apiKeyInput').value); UI.toggleSettings(); },
-            
             clearQueue: () => { fileQueue = []; UI.renderQueue(); },
             removePhoto: (index) => { fileQueue.splice(index, 1); UI.renderQueue(); },
 
@@ -182,16 +181,16 @@
 
         async function processBatch() {
             const apiKey = localStorage.getItem('snap_edi_key');
-            if(!apiKey) return alert("Please add your API Key in Settings.");
+            if(!apiKey) return alert("API Key Required.");
             document.getElementById('loader').classList.remove('hidden');
             
             try {
                 const parts = [
-                    { text: `Extract JSON using "Strict Lane Locking":
-                        1. ANCHOR: Use first item to find 11-digit UPC and Case Cost.
-                        2. SKU SEARCH: Find columns labeled "ITEM#", "PROD", or "SKU".
-                        3. LOCK LANES: Follow vertical paths strictly.
-                        4. ZERO-FILL: Return 0 for empty numeric cells.
+                    { text: `Extract JSON using "Financial Lane Locking":
+                        1. ANCHOR: Identify GROSS COST and DISCOUNT/ALLOWANCE columns.
+                        2. MATH: net_case_price = (Gross - Discount). This is critical.
+                        3. SRP: Suggested Retail is separate; do not confuse with cost.
+                        4. SKU: Look for "ITEM#", "PROD", or "SKU".
                         5. DATA: Return vendor_name, invoice_date (MMM-DD-YY), and items: [{upc, description, sku, net_case_price, units_case, qty_ordered, suggested_retail}].` },
                     ...fileQueue.map(f => ({ inlineData: { mimeType: f.mime, data: f.data } }))
                 ];
@@ -214,7 +213,7 @@
                 const ediContent = Engine.items.map(i => Engine.generateEDILine(i)).join('\n');
                 UI.updateHistory({ filename: Engine.getFileName(), content: ediContent, timestamp: Date.now() });
 
-            } catch (e) { alert("Processing Error. Check image or API key."); }
+            } catch (e) { alert("Processing Error."); }
             finally { document.getElementById('loader').classList.add('hidden'); }
         }
 
