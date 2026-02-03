@@ -3,154 +3,216 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>INVOICE TO EDI</title>
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)">
+    <title>INVOICE TO EDI v1.8</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('[https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap)');
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; -webkit-tap-highlight-color: transparent; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .btn-active:active { transform: scale(0.96); transition: 0.1s; }
     </style>
 </head>
-<body class="pb-24 text-slate-900">
+<body class="pb-24">
 
-    <header class="bg-slate-900 text-white p-5 shadow-lg sticky top-0 z-50">
-        <div class="max-w-4xl mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-black tracking-tighter uppercase italic">INVOICE TO <span class="text-emerald-400">EDI</span></h1>
-            <button onclick="toggleSettings()" class="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center btn-active"><i class="fas fa-cog text-slate-400"></i></button>
+    <header class="bg-slate-900 text-white p-5 sticky top-0 z-50 shadow-xl">
+        <div class="max-w-xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-black tracking-tighter italic">EDI <span class="text-emerald-400">SNAP</span></h1>
+            <button onclick="toggleSettings()" class="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center btn-active"><i class="fas fa-key text-slate-400 text-xs"></i></button>
         </div>
     </header>
 
-    <main class="max-w-4xl mx-auto p-4 space-y-6">
-        <div class="bg-slate-900 rounded-[2.5rem] p-10 shadow-2xl border border-slate-800 text-center relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
-            <p class="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mb-2">Batch Net Case Total</p>
-            <h2 id="grandTotal" class="text-6xl font-black text-emerald-400 tracking-tighter">$0.00</h2>
+    <main class="max-w-xl mx-auto p-4 space-y-6">
+        
+        <div class="bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-slate-800 text-center">
+            <p class="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Batch Net Case Total</p>
+            <h2 id="grandTotal" class="text-5xl font-black text-emerald-400 tracking-tighter">$0.00</h2>
         </div>
 
-        <section id="settingsPanel" class="hidden bg-white border border-slate-200 rounded-3xl p-6 shadow-xl">
-            <h3 class="font-black text-slate-800 uppercase text-[10px] tracking-widest mb-4">Gemini API Key</h3>
-            <input type="password" id="apiKey" placeholder="Paste Key..." class="w-full p-4 border-2 border-slate-100 rounded-2xl mb-4 text-sm focus:border-emerald-500 outline-none">
-            <button onclick="saveSettings()" class="bg-slate-900 text-white py-4 rounded-2xl text-xs w-full font-black uppercase tracking-widest btn-active">Save Key</button>
+        <section id="settingsPanel" class="hidden bg-white border-2 border-slate-100 rounded-3xl p-6 shadow-xl">
+            <input type="password" id="apiKey" placeholder="Paste Gemini API Key..." class="w-full p-4 border-2 border-slate-50 rounded-2xl mb-3 text-sm focus:border-emerald-500 outline-none">
+            <button onclick="saveSettings()" class="bg-slate-900 text-white py-4 rounded-2xl text-[10px] w-full font-black uppercase tracking-widest btn-active">Save Configuration</button>
         </section>
 
-        <section class="bg-white border-2 border-dashed border-slate-300 rounded-[2.5rem] p-12 text-center hover:border-emerald-400 transition cursor-pointer group btn-active" onclick="document.getElementById('fileInput').click()">
+        <section class="bg-white border-4 border-dashed border-slate-200 rounded-[3rem] p-12 text-center hover:border-emerald-400 transition cursor-pointer btn-active" onclick="document.getElementById('fileInput').click()">
             <input type="file" id="fileInput" multiple accept="image/*" class="hidden" onchange="handleFiles(this.files)">
-            <div class="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                <i class="fas fa-camera text-3xl text-emerald-600"></i>
+            <div class="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-plus text-2xl text-emerald-600"></i>
             </div>
-            <p class="text-slate-800 font-black text-xl uppercase tracking-tighter">Snap Invoice</p>
+            <p class="text-slate-800 font-black text-lg uppercase tracking-tight">Add Invoices</p>
         </section>
 
-        <div id="queueSection" class="hidden">
-            <div id="batchQueue" class="mb-4 space-y-2"></div>
-            <button id="processBtn" onclick="processBatch()" class="w-full bg-emerald-600 text-white font-black py-6 rounded-3xl shadow-xl uppercase tracking-widest text-lg btn-active">
-                Process Batch
-            </button>
+        <div id="queueSection" class="hidden space-y-3">
+            <div id="batchQueue" class="space-y-2"></div>
+            <button id="processBtn" onclick="processBatch()" class="w-full bg-emerald-600 text-white font-black py-6 rounded-3xl shadow-lg uppercase tracking-widest btn-active">Extract Data</button>
         </div>
 
-        <section class="space-y-4">
-            <div class="flex justify-between items-center px-2">
-                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">History</h3>
-                <button onclick="exportFullHistory()" class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Bulk Export</button>
-            </div>
-            <div id="historyList" class="space-y-4"></div>
-        </section>
+        <div id="errorLog" class="hidden p-4 bg-red-50 border border-red-100 rounded-2xl">
+            <p class="text-red-600 font-bold text-[10px] uppercase mb-2">Raw AI Response (Debug):</p>
+            <pre id="debugText" class="text-[9px] text-red-400 overflow-x-auto whitespace-pre-wrap"></pre>
+        </div>
+
+        <div id="historyList" class="space-y-4 pt-2"></div>
     </main>
 
     <script>
+        let history = JSON.parse(localStorage.getItem('edi_v1_8') || '[]');
         window.batchFiles = [];
-        let history = JSON.parse(localStorage.getItem('invoice_edi_v1_7') || '[]');
 
         function toggleSettings() { document.getElementById('settingsPanel').classList.toggle('hidden'); }
         function saveSettings() { localStorage.setItem('gemini_api_key', document.getElementById('apiKey').value); toggleSettings(); }
 
         function handleFiles(files) {
             window.batchFiles = Array.from(files);
-            const queueContainer = document.getElementById('batchQueue');
-            const queueSection = document.getElementById('queueSection');
-            if (queueContainer && queueSection) {
-                queueContainer.innerHTML = window.batchFiles.map(f => `
-                    <div class="bg-white p-4 border rounded-2xl text-sm font-bold shadow-sm flex justify-between items-center">
-                        <span class="truncate pr-4">${f.name}</span>
-                        <i class="fas fa-file-invoice text-emerald-500"></i>
-                    </div>`).join('');
-                queueSection.classList.remove('hidden');
-            }
+            document.getElementById('queueSection').classList.remove('hidden');
+            document.getElementById('batchQueue').innerHTML = window.batchFiles.map(f => `
+                <div class="bg-white p-4 rounded-2xl border text-xs font-bold flex justify-between items-center">
+                    <span class="truncate">${f.name}</span>
+                    <i class="fas fa-clock text-slate-300"></i>
+                </div>`).join('');
         }
 
         async function processBatch() {
-            const apiKey = localStorage.getItem('gemini_api_key');
-            if (!apiKey) return alert('API Key Required');
+            const key = localStorage.getItem('gemini_api_key');
+            if (!key) return alert('Enter API Key first (Gear icon top right)');
             const btn = document.getElementById('processBtn');
-            btn.disabled = true; btn.innerText = "Extracting...";
-            
+            btn.disabled = true; btn.innerText = "Processing...";
+            document.getElementById('errorLog').classList.add('hidden');
+
             try {
                 for (const file of window.batchFiles) {
-                    const base64Data = await fileToBase64(file);
-                    const resultText = await callGemini(base64Data, apiKey);
+                    const base64 = await fileToBase64(file);
+                    const rawResponse = await callGemini(base64, key);
                     
-                    // SELF-HEALING PARSER: Extracts JSON even if AI adds extra text
-                    const jsonMatch = resultText.match(/\{[\s\S]*\}/);
-                    if (!jsonMatch) throw new Error("Could not find valid data in AI response.");
+                    // NUCLEAR PARSER
+                    // 1. Remove Markdown code blocks (```json ... ```)
+                    let cleanJson = rawResponse.replace(/```json/g, "").replace(/```/g, "").trim();
+                    // 2. Locate the first { and last }
+                    const start = cleanJson.indexOf('{');
+                    const end = cleanJson.lastIndexOf('}');
                     
-                    const data = JSON.parse(jsonMatch[0]);
-                    processAndStore(data, file.name);
+                    if (start === -1 || end === -1) {
+                        document.getElementById('errorLog').classList.remove('hidden');
+                        document.getElementById('debugText').innerText = rawResponse;
+                        throw new Error("AI output contained no JSON object.");
+                    }
+                    
+                    cleanJson = cleanJson.substring(start, end + 1);
+                    const data = JSON.parse(cleanJson);
+                    saveRecord(data);
                 }
+                window.batchFiles = [];
                 document.getElementById('queueSection').classList.add('hidden');
-            } catch (e) { 
+            } catch (e) {
                 console.error(e);
-                alert("Processing Error: " + e.message); 
-            } finally { 
-                btn.disabled = false; btn.innerText = "Process Batch"; 
+                alert("Extraction Failed. See red debug box below.");
+                document.getElementById('errorLog').classList.remove('hidden');
+            } finally {
+                btn.disabled = false; btn.innerText = "Extract Data";
             }
         }
 
-        async function callGemini(base64Image, key) {
-            const prompt = `Extract: Vendor Name, Invoice Date (Mmm-DD-YY), and Items (UPC 11 digits, Description, SKU, Net Case Cost, Units/Case, Qty). Return as JSON object.`;
+        async function callGemini(base64, key) {
             const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                method: 'POST',
                 body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: base64Image.split(',')[1] } }] }],
-                    generationConfig: { responseMimeType: "application/json" }
+                    contents: [{ parts: [
+                        { text: "Extract Vendor Name, Invoice Date (Mmm-DD-YY), and Items (UPC 11 digits, Description, SKU, Net Case Cost, Units/Case, Qty Ordered). Output only valid JSON." },
+                        { inline_data: { mime_type: "image/jpeg", data: base64.split(',')[1] } }
+                    ]}]
                 })
             });
-            const data = await res.json();
-            return data.candidates[0].content.parts[0].text;
+            const json = await res.json();
+            if (json.error) throw new Error(json.error.message);
+            return json.candidates[0].content.parts[0].text;
         }
 
-        function generateBRecord(item) {
-            let r = "B"; 
-            r += String(item.upc || "").replace(/\D/g, '').substring(0, 11).padEnd(11, '0');
-            r += String(item.description || "").toUpperCase().substring(0, 26).padEnd(26, ' ');
-            r += String(item.sku || "").replace(/\D/g, '').slice(-5).padStart(5, '0');
-            r += Math.round(parseFloat(item.netCost || 0) * 100).toString().padStart(6, '0').substring(0, 6);
-            r += "CS";
-            let u = parseInt(item.unitsPerCase || 1);
-            r += u.toString().padStart(6, '0').substring(0, 6);
-            r += "+";
-            r += String(item.qtyOrdered || 1).replace(/\D/g, '').padStart(4, '0').substring(0, 4);
-            let rt = (parseFloat(item.netCost || 0) / u) * 1.35;
-            r += Math.round(rt * 100).toString().padStart(5, '0').substring(0, 5);
-            r += "001";
-            return r;
-        }
-
-        function processAndStore(data, originalFile) {
+        function saveRecord(data) {
             let total = 0;
-            let items = (data.items || []).map(i => {
+            const items = (data.items || []).map(i => {
                 total += (parseFloat(i.netCost || 0) * parseInt(i.qtyOrdered || 1));
                 return generateBRecord(i);
             });
 
-            const vendor = (data.vendorName || "VENDOR").replace(/[^a-zA-Z0-9]/g, '').substring(0, 14).toUpperCase();
+            const vendor = (data.vendorName || "VENDOR").replace(/[^a-zA-Z0-9]/g, '').substring(0, 10).toUpperCase();
             const date = data.invoiceDate || "DATE";
-            const fileName = `${vendor}_${date}.txt`;
+            
+            history.unshift({
+                id: Date.now(),
+                name: `${vendor}_${date}.txt`,
+                total: total.toFixed(2),
+                count: items.length,
+                edi: items.join('\n')
+            });
 
-            history.unshift({ id: Date.now(), fileName, total: total.toFixed(2), itemCount: items.length, edi: items.join('\n') });
             document.getElementById('grandTotal').innerText = `$${total.toFixed(2)}`;
-            localStorage.setItem('invoice_edi_v1_7', JSON.stringify(history.slice(0, 50)));
-            renderHistory();
+            localStorage.setItem('edi_v1_8', JSON.stringify(history.slice(0, 30)));
+            render();
         }
 
-        function renderHistory
+        function generateBRecord(i) {
+            let r = "B";
+            r += String(i.upc || "").replace(/\D/g, '').padEnd(11, '0').substring(0, 11);
+            r += String(i.description || "").toUpperCase().padEnd(26, ' ').substring(0, 26);
+            r += String(i.sku || "").replace(/\D/g, '').padStart(5, '0').slice(-5);
+            r += Math.round(parseFloat(i.netCost || 0) * 100).toString().padStart(6, '0').substring(0, 6);
+            r += "CS";
+            let u = parseInt(i.unitsPerCase || 1);
+            r += u.toString().padStart(6, '0').substring(0, 6);
+            r += "+";
+            r += String(i.qtyOrdered || 1).padStart(4, '0').substring(0, 4);
+            r += Math.round((parseFloat(i.netCost || 0) / u) * 1.35 * 100).toString().padStart(5, '0').substring(0, 5);
+            r += "001";
+            return r;
+        }
+
+        function render() {
+            document.getElementById('historyList').innerHTML = history.map(h => `
+                <div class="bg-white p-6 rounded-[2rem] border-2 border-slate-50 shadow-sm mb-4">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h4 class="font-black text-slate-800 text-sm mb-1">${h.name}</h4>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${h.count} ITEMS</span>
+                        </div>
+                        <span class="text-emerald-600 font-black text-xl">$${h.total}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="shareFile('${h.id}')" class="flex-1 bg-slate-900 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest btn-active">Share</button>
+                        <button onclick="downloadFile('${h.id}')" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest btn-active">Save</button>
+                        <button onclick="deleteFile('${h.id}')" class="w-12 bg-red-50 text-red-400 rounded-xl btn-active"><i class="fas fa-trash text-xs"></i></button>
+                    </div>
+                </div>`).join('');
+        }
+
+        async function shareFile(id) {
+            const h = history.find(x => x.id == id);
+            const file = new File([h.edi], h.name, { type: 'text/plain' });
+            if (navigator.share) await navigator.share({ files: [file], title: h.name });
+            else downloadFile(id);
+        }
+
+        function downloadFile(id) {
+            const h = history.find(x => x.id == id);
+            const blob = new Blob([h.edi], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob); a.download = h.name;
+            a.click();
+        }
+
+        function deleteFile(id) {
+            if(!confirm("Delete record?")) return;
+            history = history.filter(x => x.id != id);
+            localStorage.setItem('edi_v1_8', JSON.stringify(history));
+            render();
+        }
+
+        function fileToBase64(file) {
+            return new Promise((r) => { const rd = new FileReader(); rd.readAsDataURL(file); rd.onload = () => r(rd.result); });
+        }
+
+        window.onload = () => {
+            document.getElementById('apiKey').value = localStorage.getItem('gemini_api_key') || '';
+            render();
+        };
+    </script>
+</body>
+</html>
