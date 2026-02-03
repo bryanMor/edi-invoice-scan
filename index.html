@@ -83,7 +83,7 @@
 
     <script>
         window.batchFiles = [];
-        let history = JSON.parse(localStorage.getItem('invoice_edi_v1_4') || '[]');
+        let history = JSON.parse(localStorage.getItem('invoice_edi_v1_3') || '[]');
 
         function saveSettings() {
             localStorage.setItem('gemini_api_key', document.getElementById('apiKey').value);
@@ -153,14 +153,14 @@
 
             history.unshift({ id: Date.now(), fileName, total: total.toFixed(2), edi: edi });
             document.getElementById('grandTotal').innerText = `$${total.toFixed(2)}`;
-            localStorage.setItem('invoice_edi_v1_4', JSON.stringify(history.slice(0, 50)));
+            localStorage.setItem('invoice_edi_v1_3', JSON.stringify(history.slice(0, 50)));
             renderHistory();
         }
 
         function renderHistory() {
             const list = document.getElementById('historyList');
             list.innerHTML = history.map(item => `
-                <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden">
+                <div class="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm relative overflow-hidden">
                     <div class="flex justify-between items-start mb-4">
                         <div class="max-w-[70%]">
                             <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest block mb-1">Generated File</span>
@@ -171,23 +171,16 @@
                         </div>
                     </div>
                     <div class="edi-preview mono mb-4">${item.edi}</div>
-                    <div class="space-y-2">
-                        <div class="grid grid-cols-2 gap-2">
-                            <button onclick="shareFile('${item.id}')" class="bg-slate-900 text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest btn-active flex items-center justify-center gap-2">
-                                <i class="fas fa-share-nodes"></i> Share / Save
-                            </button>
-                            <button onclick="downloadFallbackById('${item.id}')" class="bg-emerald-600 text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest btn-active flex items-center justify-center gap-2">
-                                <i class="fas fa-download"></i> Download .TXT
-                            </button>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button onclick="copyToClipboard('${item.id}')" class="bg-slate-100 text-slate-600 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest btn-active">
-                                <i class="fas fa-copy mr-1"></i> Copy Text
-                            </button>
-                            <button onclick="deleteRecord('${item.id}')" class="bg-red-50 text-red-400 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest btn-active">
-                                <i class="fas fa-trash mr-1"></i> Delete
-                            </button>
-                        </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="shareFile('${item.id}')" class="col-span-2 bg-slate-900 text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest btn-active flex items-center justify-center gap-2">
+                            <i class="fas fa-share-nodes"></i> Share / Save
+                        </button>
+                        <button onclick="copyToClipboard('${item.id}')" class="bg-slate-100 text-slate-600 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest btn-active">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button onclick="deleteRecord('${item.id}')" class="col-span-3 py-3 text-slate-300 text-[9px] font-bold uppercase tracking-widest hover:text-red-500 transition">
+                            Delete Record
+                        </button>
                     </div>
                 </div>
             `).join('');
@@ -196,21 +189,22 @@
         async function shareFile(id) {
             const item = history.find(h => h.id == id);
             if (!item) return;
+
             const file = new File([item.edi], item.fileName, { type: 'text/plain' });
+
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
-                    await navigator.share({ files: [file], title: item.fileName });
+                    await navigator.share({
+                        files: [file],
+                        title: item.fileName,
+                    });
                 } catch (err) {
-                    console.error("Share failed", err);
+                    console.error("Share cancelled/failed", err);
+                    downloadFallback(item);
                 }
             } else {
-                downloadFallbackById(id);
+                downloadFallback(item);
             }
-        }
-
-        function downloadFallbackById(id) {
-            const item = history.find(h => h.id == id);
-            if (item) downloadFallback(item);
         }
 
         function downloadFallback(item) {
@@ -219,10 +213,7 @@
             const a = document.createElement('a');
             a.href = url;
             a.download = item.fileName;
-            document.body.appendChild(a);
             a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
         }
 
         function copyToClipboard(id) {
@@ -234,7 +225,7 @@
         function deleteRecord(id) {
             if(!confirm("Delete this record?")) return;
             history = history.filter(h => h.id != id);
-            localStorage.setItem('invoice_edi_v1_4', JSON.stringify(history));
+            localStorage.setItem('invoice_edi_v1_3', JSON.stringify(history));
             renderHistory();
         }
 
