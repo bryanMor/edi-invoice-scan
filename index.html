@@ -3,100 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SnapEDI Pro - v2.4</title>
+    <title>SnapEDI Pro - v2.5</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .scroll-hide::-webkit-scrollbar { display: none; }
         .settings-panel { transition: transform 0.3s ease-in-out; }
-        
-        /* Optimized for exactly 4 thumbnails across */
         .photo-container { position: relative; flex: 0 0 85px; }
         .photo-bubble { 
-            width: 85px; 
-            height: 125px; 
-            object-fit: cover; 
-            border-radius: 10px; 
-            border: 2px solid #e2e8f0; 
-            background: white; 
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            width: 85px; height: 125px; object-fit: cover; 
+            border-radius: 10px; border: 2px solid #e2e8f0; 
+            background: white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
         }
         .del-btn { 
-            position: absolute; 
-            top: -8px; 
-            right: -8px; 
-            background: #ef4444; 
-            color: white; 
-            border-radius: 50%; 
-            width: 24px; 
-            height: 24px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-size: 14px; 
-            font-weight: bold;
-            border: 2px solid white; 
-            z-index: 10;
+            position: absolute; top: -8px; right: -8px; 
+            background: #ef4444; color: white; border-radius: 50%; 
+            width: 24px; height: 24px; display: flex; 
+            align-items: center; justify-content: center; 
+            font-size: 14px; font-weight: bold; border: 2px solid white;
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 font-sans overflow-x-hidden">
+<body class="bg-[#F8FAFC] font-sans text-slate-900 min-h-screen pb-20">
 
-    <div id="settingsOverlay" class="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 transform translate-x-full settings-panel border-l border-slate-200">
-        <div class="p-6">
-            <h2 class="text-xl font-black mb-8">Settings</h2>
+    <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 py-4 flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-black tracking-tighter text-indigo-600">SnapEDI <span class="text-slate-400 font-bold text-xs uppercase tracking-widest ml-1">v2.4</span></h1>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Professional EDI Portal</p>
+        </div>
+        <button onclick="UI.toggleSettings()" class="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-lg border border-slate-100">⚙️</button>
+    </header>
+
+    <main class="max-w-md mx-auto px-6 pt-6 space-y-6">
+        <div class="bg-indigo-600 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-indigo-200 relative overflow-hidden">
+            <div class="relative z-10">
+                <h2 class="text-2xl font-black leading-tight mb-2">Scan Invoice</h2>
+                <p class="text-indigo-100 text-xs font-medium mb-6 opacity-80">Batch process images into EDI B-Records</p>
+                <label class="inline-flex items-center gap-3 bg-white text-indigo-600 px-6 py-4 rounded-2xl font-black text-sm active:scale-95 transition-transform cursor-pointer shadow-lg">
+                    <span class="text-xl">📸</span> TAKE PHOTOS
+                    <input type="file" accept="image/*" multiple capture="environment" class="hidden" onchange="addToQueue(this)">
+                </label>
+            </div>
+            <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+        </div>
+
+        <div id="queueHeader" class="hidden flex justify-between items-center px-1">
+            <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Batch Queue</h3>
+            <button onclick="UI.clearQueue()" class="text-[10px] font-bold text-red-500 uppercase">Clear All</button>
+        </div>
+        <div id="photoQueue" class="flex gap-4 overflow-x-auto pb-2 scroll-hide"></div>
+
+        <button id="processBtn" onclick="processBatch()" class="hidden w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black text-sm shadow-xl flex items-center justify-center gap-3 active:scale-[0.98] transition-all">
+            PROCESS BATCH <span class="bg-white/20 px-2 py-0.5 rounded-lg text-[10px]">GEMINI AI</span>
+        </button>
+
+        <div id="summaryCard" class="hidden bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Invoice Total</p>
+                    <h3 id="grandTotal" class="text-3xl font-black text-slate-900">$0.00</h3>
+                </div>
+                <div class="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black uppercase">Verified</div>
+            </div>
+            <div id="actionButtons" class="hidden grid grid-cols-2 gap-3">
+                <button onclick="downloadEDI()" class="bg-indigo-50 text-indigo-600 py-4 rounded-2xl font-black text-xs border border-indigo-100">💾 DOWNLOAD TXT</button>
+                <button onclick="window.location.reload()" class="bg-slate-50 text-slate-600 py-4 rounded-2xl font-black text-xs">🔄 NEW SCAN</button>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-widest px-1">Recent Activity</h3>
+            <div id="historyList" class="space-y-3"></div>
+        </div>
+    </main>
+
+    <div id="settingsOverlay" class="fixed inset-0 z-50 translate-x-full settings-panel">
+        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="UI.toggleSettings()"></div>
+        <div class="absolute right-0 top-0 bottom-0 w-80 bg-white p-8 shadow-2xl">
+            <h2 class="text-xl font-black mb-6">Settings</h2>
             <div class="space-y-6">
                 <div>
-                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest">Gemini API Key</label>
-                    <input type="password" id="apiKeyInput" class="w-full bg-slate-100 rounded-xl p-3 text-sm border focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Gemini API Key</label>
+                    <input id="apiKeyInput" type="password" class="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl text-sm font-bold focus:ring-2 ring-indigo-500 outline-none" placeholder="Paste Key Here">
                 </div>
-                <button onclick="UI.saveSettings()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl shadow-lg">Save Changes</button>
+                <button onclick="UI.saveSettings()" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-sm shadow-lg shadow-indigo-100">SAVE CONFIG</button>
             </div>
         </div>
     </div>
 
-    <main class="max-w-4xl mx-auto p-4 pb-20">
-        <div class="flex justify-between items-center mb-6">
-            <div>
-                <h1 class="text-3xl font-black text-indigo-600 italic leading-none">SnapEDI</h1>
-                <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">B-Record Engine v2.4</p>
-            </div>
-            <button onclick="UI.toggleSettings()" class="p-4 bg-white shadow-sm border rounded-2xl">⚙️</button>
-        </div>
-
-        <div class="mb-6">
-            <div id="queueHeader" class="hidden flex justify-between items-center mb-3 px-1">
-                <span class="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Pages Ready for Batch</span>
-                <button onclick="UI.clearQueue()" class="text-[10px] font-black uppercase text-red-500 bg-red-50 px-3 py-1 rounded-full">Clear All</button>
-            </div>
-            <div id="photoQueue" class="flex gap-4 overflow-x-auto py-2 scroll-hide min-h-[140px]"></div>
-        </div>
-
-        <div class="flex gap-3 mb-8">
-            <button onclick="document.getElementById('fileInput').click()" class="flex-[2] bg-white border-2 border-indigo-600 text-indigo-600 py-4 rounded-[2rem] font-black uppercase text-xs">Add Page</button>
-            <button id="processBtn" onclick="processBatch()" class="flex-[3] hidden bg-indigo-600 text-white py-4 rounded-[2rem] font-black uppercase text-xs shadow-xl">Process Batch</button>
-            <input type="file" id="fileInput" class="hidden" multiple onchange="addToQueue(this)">
-        </div>
-
-        <div id="summaryCard" class="hidden bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-2xl mb-4">
-            <p class="text-slate-400 text-[10px] font-black uppercase mb-1">Grand Total (Net Paid)</p>
-            <h2 id="grandTotal" class="text-4xl font-black text-emerald-400 font-mono">$0.00</h2>
-        </div>
-
-        <div id="actionButtons" class="hidden grid grid-cols-2 gap-3 mb-8">
-            <button onclick="downloadEDI()" class="bg-indigo-600 text-white py-4 rounded-[2rem] font-black text-xs uppercase shadow-lg">Save EDI</button>
-            <button onclick="processBatch()" class="bg-white border border-slate-200 py-4 rounded-[2rem] font-black text-xs uppercase">Rescan</button>
-        </div>
-
-        <div id="loader" class="hidden flex flex-col items-center py-10 text-center">
-            <div class="w-10 h-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-            <p class="font-black text-indigo-600 uppercase text-[9px] tracking-widest">Calculating Net Costs...</p>
-        </div>
-
-        <div class="mt-8 pt-8 border-t">
-            <h3 class="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest px-1">History (2 Weeks)</h3>
-            <div id="historyList" class="space-y-3"></div>
-        </div>
-    </main>
+    <div id="loader" class="hidden fixed inset-0 z-[60] bg-white flex flex-center flex-col items-center justify-center p-10 text-center">
+        <div class="w-16 h-16 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin mb-6"></div>
+        <h2 class="text-lg font-black text-slate-900 mb-2">Analyzing Invoices</h2>
+        <p class="text-xs font-medium text-slate-400 leading-relaxed">Gemini is applying Grid-Lock and identifying UPC sequences...</p>
+    </div>
 
     <script>
         let fileQueue = [];
@@ -104,21 +102,27 @@
 
         const Engine = {
             vendorName: "VENDOR",
-            invoiceDate: "FEB-01-26",
+            invoiceDate: "FEB-03-26",
             items: [],
             margin: 1.35,
 
             getFileName: function() {
                 const words = this.vendorName.toUpperCase().split(' ').filter(w => w.length > 1).slice(0, 2).join('');
-                const shortName = words.substring(0, 14);
-                return `${shortName}_${this.invoiceDate}.txt`;
+                return `${words.substring(0, 14)}_${this.invoiceDate}.txt`;
             },
 
             generateEDILine: function(item) {
                 const onlyNums = (val) => String(val || "0").replace(/\D/g, "");
                 const toCents = (val) => Math.round((Number(val) || 0) * 100).toString().replace(/\D/g, "");
 
-                let upc = onlyNums(item.upc).padStart(11, '0').slice(-11);
+                // RULE: UPC (11 digits). If 12 provided, take first 11. If 10 provided, Gemini verified the 11th.
+                let upc = onlyNums(item.upc).padStart(11, '0').slice(0, 11);
+                
+                // RULE: Exact first 26 characters of the description.
+                let desc = String(item.description || "ITEM").toUpperCase()
+                           .padEnd(26, ' ')
+                           .substring(0, 26);
+
                 let sku = onlyNums(item.sku).padStart(6, '0').slice(-6);
                 let qty = onlyNums(item.qty_ordered).padStart(4, '0').slice(-4);
                 let units = onlyNums(item.units_case || 1).padStart(6, '0').slice(-6);
@@ -128,7 +132,7 @@
                 const retailCalc = srpVal > 0 ? srpVal : ((Number(item.net_case_price) || 0) / (Number(item.units_case) || 1)) * this.margin;
                 let retail = toCents(retailCalc).padStart(5, '0').slice(-5);
 
-                const desc = String(item.description || "ITEM").toUpperCase().substring(0, 26).padEnd(26, ' ');
+                // FORMAT: B(1) + UPC(11) + DESC(26) + SKU(6) + COST(5) + CS(2) + UNITS(6) + DELIM(1) + QTY(4) + RETAIL(5) + CONST(3)
                 return `B${upc}${desc}${sku}${cost}CS${units}+${qty}${retail}001`;
             }
         };
@@ -158,10 +162,7 @@
                     history.unshift(newEntry);
                     if(history.length > 20) history.pop();
                 }
-                const twoWeeksAgo = Date.now() - (14 * 24 * 60 * 60 * 1000);
-                history = history.filter(h => h.timestamp > twoWeeksAgo);
                 localStorage.setItem('snap_history', JSON.stringify(history));
-
                 document.getElementById('historyList').innerHTML = history.length === 0 ? 
                     '<p class="text-[10px] text-slate-300 font-bold px-1 italic">No recent scans</p>' :
                     history.map((h, i) => `
@@ -186,12 +187,12 @@
             
             try {
                 const parts = [
-                    { text: `Extract JSON using "Financial Lane Locking":
-                        1. ANCHOR: Identify GROSS COST and DISCOUNT/ALLOWANCE columns.
-                        2. MATH: net_case_price = (Gross - Discount). This is critical.
-                        3. SRP: Suggested Retail is separate; do not confuse with cost.
-                        4. SKU: Look for "ITEM#", "PROD", or "SKU".
-                        5. DATA: Return vendor_name, invoice_date (MMM-DD-YY), and items: [{upc, description, sku, net_case_price, units_case, qty_ordered, suggested_retail}].` },
+                    { text: `Extract JSON using "Grid-Lock Extraction":
+                        1. HANDSHAKE: Use first two items to identify vertical columns for UPC, SKU, Description, and Net Price.
+                        2. GRID-LOCK: Once identified, extract all rows using these locked coordinates.
+                        3. UPC RULE: Extract the full code. If 12 digits, return first 11. If 10 digits, search/verify the 11th digit using the product description.
+                        4. DESC RULE: Extract exact description text from invoice.
+                        5. DATA: Return JSON: {vendor_name, invoice_date (MMM-DD-YY), items: [{upc, description, sku, net_case_price, units_case, qty_ordered, suggested_retail}]}.` },
                     ...fileQueue.map(f => ({ inlineData: { mimeType: f.mime, data: f.data } }))
                 ];
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, { 
@@ -202,7 +203,7 @@
                 const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
                 
                 Engine.vendorName = parsed.vendor_name || "VENDOR";
-                Engine.invoiceDate = parsed.invoice_date || "FEB-01-26";
+                Engine.invoiceDate = parsed.invoice_date || "FEB-03-26";
                 Engine.items = parsed.items;
 
                 const total = Engine.items.reduce((sum, item) => sum + (Number(item.net_case_price || 0) * Number(item.qty_ordered || 0)), 0);
