@@ -181,42 +181,60 @@
         };
 
         async function processBatch() {
-            const apiKey = localStorage.getItem('snap_edi_key');
-            if(!apiKey) return alert("API Key Required.");
-            document.getElementById('loader').classList.remove('hidden');
-            
-            try {
-                const parts = [
-                    { text: `Extract JSON using "Grid-Lock Extraction":
-                        1. HANDSHAKE: Use first two items to identify vertical columns for UPC, SKU, Description, and Net Price.
-                        2. GRID-LOCK: Once identified, extract all rows using these locked coordinates.
-                        3. UPC RULE: Extract the full code. If 12 digits, return first 11. If 10 digits, search/verify the 11th digit using the product description.
-                        4. DESC RULE: Extract exact description text from invoice.
-                        5. DATA: Return JSON: {vendor_name, invoice_date (MMM-DD-YY), items: [{upc, description, sku, net_case_price, units_case, qty_ordered, suggested_retail}]}.` },
-                    ...fileQueue.map(f => ({ inlineData: { mimeType: f.mime, data: f.data } }))
-                ];
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, { 
-                    method: 'POST', headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: "application/json" } }) 
-                });
-                const data = await res.json();
-                const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
-                
-                Engine.vendorName = parsed.vendor_name || "VENDOR";
-                Engine.invoiceDate = parsed.invoice_date || "FEB-03-26";
-                Engine.items = parsed.items;
+    const apiKey = localStorage.getItem('snap_edi_key');
+    if(!apiKey) return alert("API Key Required.");
+    document.getElementById('loader').classList.remove('hidden');
+    
+    try {
+        const parts = [
+            { text: `Extract JSON using "Grid-Lock Extraction":
+                1. HANDSHAKE: Use first two items to identify vertical columns for UPC, SKU, Description, and Net Price.
+                2. GRID-LOCK: Once identified, extract all rows using these locked coordinates.
+                3. UPC RULE: Extract the full code. If 12 digits, return first 11. If 10 digits, search/verify the 11th digit using the product description.
+                4. DESC RULE: Extract exact description text from invoice.
+                5. DATA: Return ONLY a raw JSON object with NO extra text: {"vendor_name": "...", "invoice_date": "MMM-DD-YY", "items": [{"upc": "...", "description": "...", "sku": "...", "net_case_price": 0.00, "units_case": 0, "qty_ordered": 0, "suggested_retail": 0.00}]}` },
+            ...fileQueue.map(f => ({ inlineData: { mimeType: f.mime, data: f.data } }))
+        ];
 
-                const total = Engine.items.reduce((sum, item) => sum + (Number(item.net_case_price || 0) * Number(item.qty_ordered || 0)), 0);
-                document.getElementById('grandTotal').innerText = `$${total.toFixed(2)}`;
-                document.getElementById('summaryCard').classList.remove('hidden');
-                document.getElementById('actionButtons').classList.remove('hidden');
-                
-                const ediContent = Engine.items.map(i => Engine.generateEDILine(i)).join('\n');
-                UI.updateHistory({ filename: Engine.getFileName(), content: ediContent, timestamp: Date.now() });
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ 
+                contents: [{ parts }], 
+                generationConfig: { 
+                    responseMimeType: "application/json",
+                    temperature: 0.1 // Keeps the AI focused and consistent
+                } 
+            }) 
+        });
 
-            } catch (e) { alert("Processing Error."); }
-            finally { document.getElementById('loader').classList.add('hidden'); }
-        }
+        const data = await res.json();
+        
+        // Safety check for API errors (like invalid keys or quota limits)
+        if (data.error) throw new Error(data.error.message);
+
+        const textResponse = data.candidates[0].content.parts[0].text;
+        const parsed = JSON.parse(textResponse);
+        
+        Engine.vendorName = parsed.vendor_name || "VENDOR";
+        Engine.invoiceDate = parsed.invoice_date || "FEB-01-26";
+        Engine.items = parsed.items;
+
+        const total = Engine.items.reduce((sum, item) => sum + (Number(item.net_case_price || 0) * Number(item.qty_ordered || 0)), 0);
+        document.getElementById('grandTotal').innerText = `$${total.toFixed(2)}`;
+        document.getElementById('summaryCard').classList.remove('hidden');
+        document.getElementById('actionButtons').classList.remove('hidden');
+        
+        const ediContent = Engine.items.map(i => Engine.generateEDILine(i)).join('\n');
+        UI.updateHistory({ filename: Engine.getFileName(), content: ediContent, timestamp: Date.now() });
+
+    } catch (e) { 
+        console.error(e);
+        alert("Processing Error: " + e.message); 
+    } finally { 
+        document.getElementById('loader').classList.add('hidden'); 
+    }
+}
 
         function downloadEDI() {
             const content = Engine.items.map(i => Engine.generateEDILine(i)).join('\n');
@@ -260,3 +278,4 @@
     </script>
 </body>
 </html>
+
