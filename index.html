@@ -30,7 +30,7 @@
                     <h2 id="grandTotal" class="text-4xl font-bold text-emerald-400 mt-1">$0.00</h2>
                 </div>
                 <div class="text-right">
-                    <span class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-1 rounded border border-emerald-500/20 font-bold">GRID-LOCK ACTIVE</span>
+                    <span class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-1 rounded border border-emerald-500/20 font-bold">POS: SKU(5) | COST(6)</span>
                 </div>
             </div>
         </div>
@@ -44,29 +44,47 @@
         <section class="bg-white border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:border-emerald-400 transition cursor-pointer group" onclick="document.getElementById('fileInput').click()">
             <input type="file" id="fileInput" multiple accept="image/*" class="hidden" onchange="handleFiles(this.files)">
             <i class="fas fa-file-invoice text-4xl text-slate-300 mb-4 group-hover:text-emerald-500"></i>
-            <p class="text-slate-600 font-semibold">Upload Invoice Images</p>
+            <p class="text-slate-600 font-semibold text-lg">Upload Invoices</p>
+            <p class="text-xs text-slate-400">Rules applied: 70-char, Unit-Retail, Fixed Positions</p>
         </section>
 
         <div id="queueSection" class="hidden">
             <h3 class="text-sm font-bold text-slate-500 uppercase mb-3">Queue</h3>
             <div id="batchQueue" class="space-y-2"></div>
-            <button id="processBtn" onclick="processBatch()" class="w-full mt-4 bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-emerald-700 transition">
-                Process with Unit-Retail Logic
+            <button id="processBtn" onclick="processBatch()" class="w-full mt-4 bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-emerald-700 transition uppercase tracking-widest">
+                Run Extraction
             </button>
         </div>
 
         <section>
             <div class="flex justify-between items-center mb-3">
                 <h3 class="text-sm font-bold text-slate-500 uppercase">14-Day History</h3>
-                <button onclick="exportFullHistory()" class="text-xs text-slate-500 hover:text-emerald-600"><i class="fas fa-download"></i> Export All</button>
+                <button onclick="exportFullHistory()" class="text-xs text-emerald-600 hover:underline"><i class="fas fa-download"></i> Export History (.txt)</button>
             </div>
             <div id="historyList" class="space-y-4"></div>
+        </section>
+
+        <section class="bg-slate-100 rounded-xl p-4 border border-slate-200">
+            <h4 class="text-xs font-bold text-slate-500 uppercase mb-2">B-Record Map (70 Chars)</h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px] mono text-slate-600">
+                <div>1: B</div>
+                <div>2-12: UPC (11)</div>
+                <div>13-38: DESC (26)</div>
+                <div class="font-bold text-blue-600">39-43: SKU (5)</div>
+                <div class="font-bold text-blue-600">44-49: COST (6)</div>
+                <div>50-51: CS</div>
+                <div>52-57: UNITS (6)</div>
+                <div>58: +</div>
+                <div>59-62: QTY (4)</div>
+                <div>63-67: RETAIL (5)</div>
+                <div>68-70: 001</div>
+            </div>
         </section>
     </main>
 
     <script>
         let batchFiles = [];
-        let history = JSON.parse(localStorage.getItem('edi_history_pro') || '[]');
+        let history = JSON.parse(localStorage.getItem('edi_history_v1_updated') || '[]');
 
         function toggleSettings() { document.getElementById('settingsPanel').classList.toggle('hidden'); }
         function saveSettings() { localStorage.setItem('gemini_api_key', document.getElementById('apiKey').value); toggleSettings(); }
@@ -83,7 +101,7 @@
             if (!apiKey) return alert('Enter API Key');
             const btn = document.getElementById('processBtn');
             btn.disabled = true;
-            btn.innerText = "Applying Grid-Lock & Unit Calculations...";
+            btn.innerText = "Analyzing Grid...";
 
             try {
                 for (const file of batchFiles) {
@@ -93,106 +111,17 @@
                 }
                 document.getElementById('queueSection').classList.add('hidden');
             } catch (e) { alert("Error: " + e.message); }
-            finally { btn.disabled = false; btn.innerText = "Process with Unit-Retail Logic"; }
+            finally { btn.disabled = false; btn.innerText = "Run Extraction"; }
         }
 
         async function callGemini(base64Image, key) {
-            const prompt = `Perform "Grid-Lock" extraction. 
-            1. Find UPC, SKU, Description, Net Price, Units Per Case, and Qty. 
-            2. Use specific line descriptions (e.g. "2L8 7UP"), not headers.
-            3. Net Cost = Price - Discounts. 
-            4. If UPC is 10 digits, infer 11th. If 12, take first 11.
-            Return JSON array: [{upc, description, sku, netCost, unitsPerCase, qtyOrdered}]`;
+            const prompt = `Grid-Lock Extraction: 
+            1. Extract UPC, SKU, Line-specific Description, Net Price, Units Per Case, Qty. 
+            2. Net Cost = Price - Discounts. 
+            3. 11-digit UPC (first 11 if 12).
+            Return JSON: [{upc, description, sku, netCost, unitsPerCase, qtyOrdered}]`;
 
             const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: base64Image.split(',')[1] } }] }],
-                    generationConfig: { responseMimeType: "application/json", temperature: 0.1 }
-                })
-            });
-            const data = await res.json();
-            return JSON.parse(data.candidates[0].content.parts[0].text);
-        }
-
-        function generateBRecord(item) {
-            let record = "B"; 
-            record += String(item.upc || "").replace(/\D/g, '').substring(0, 11).padEnd(11, '0');
-            record += String(item.description || "").toUpperCase().substring(0, 26).padEnd(26, ' ');
-            record += String(item.sku || "").replace(/\D/g, '').slice(-6).padStart(6, '0');
-            record += Math.round(parseFloat(item.netCost || 0) * 100).toString().padStart(5, '0').substring(0, 5);
-            record += "CS";
-            
-            let units = parseInt(item.unitsPerCase || 1);
-            record += units.toString().padStart(6, '0').substring(0, 6);
-            record += "+";
-            record += String(item.qtyOrdered || 1).replace(/\D/g, '').padStart(4, '0').substring(0, 4);
-
-            // Per-Unit Retail Calculation ( (Net / Units) * 1.35 )
-            let unitRetail = (parseFloat(item.netCost || 0) / units) * 1.35;
-            record += Math.round(unitRetail * 100).toString().padStart(5, '0').substring(0, 5);
-            
-            record += "001";
-            return record; 
-        }
-
-        function processAndStore(items, filename) {
-            let total = 0;
-            let edi = items.map(item => {
-                total += (parseFloat(item.netCost || 0) * parseInt(item.qtyOrdered || 1));
-                return generateBRecord(item);
-            }).join('\n');
-
-            document.getElementById('grandTotal').innerText = `$${total.toFixed(2)}`;
-            history.unshift({ id: Date.now(), date: new Date().toLocaleString(), file: filename, total: total.toFixed(2), edi: edi });
-            localStorage.setItem('edi_history_pro', JSON.stringify(history.slice(0, 50)));
-            renderHistory();
-        }
-
-        function renderHistory() {
-            document.getElementById('historyList').innerHTML = history.map(item => `
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-xs font-bold text-slate-400">${item.file}</span>
-                        <div class="flex gap-2">
-                            <button onclick="downloadTxt('${item.id}')" class="text-[10px] bg-slate-100 px-2 py-1 rounded hover:bg-emerald-50 underline">.txt</button>
-                            <span class="text-emerald-600 font-bold">$${item.total}</span>
-                        </div>
-                    </div>
-                    <div class="edi-preview mono">${item.edi}</div>
-                </div>
-            `).join('');
-        }
-
-        function downloadTxt(id) {
-            const item = history.find(h => h.id == id);
-            const blob = new Blob([item.edi], { type: 'text/plain' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `${item.file.split('.')[0]}.txt`;
-            a.click();
-        }
-
-        function exportFullHistory() {
-            const content = history.map(h => h.edi).join('\n');
-            const blob = new Blob([content], { type: 'text/plain' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `SnapEDI_Export_${new Date().toISOString().slice(0,10)}.txt`;
-            a.click();
-        }
-
-        function fileToBase64(file) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-            });
-        }
-
-        document.getElementById('apiKey').value = localStorage.getItem('gemini_api_key') || '';
-        renderHistory();
-    </script>
-</body>
-</html>
+                body: JSON.
