@@ -181,27 +181,39 @@
             `).join('');
         }
 
-        function downloadTxt(id) {
-            const item = history.find(h => h.id == id);
-            if(!item) return;
+        async function downloadTxt(id) {
+    const item = history.find(h => h.id == id);
+    if(!item) return;
 
-            // Using 'application/octet-stream' to force a download prompt on mobile
-            const blob = new Blob([item.edi], { type: 'application/octet-stream' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            
-            a.href = url;
-            a.download = item.fileName;
-            
-            // Required for mobile trigger
-            document.body.appendChild(a);
-            a.click();
-            
-            setTimeout(() => {
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-            }, 100);
+    const file = new File([item.edi], item.fileName, { type: 'text/plain' });
+
+    // Check if the browser supports the Share API (Safari/Chrome Mobile)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({
+                files: [file],
+                title: item.fileName,
+                text: 'EDI Record from Invoice'
+            });
+        } catch (err) {
+            // Fallback if user cancels or share fails
+            console.log("Share failed:", err);
+            fallbackDownload(item);
         }
+    } else {
+        // Fallback for desktop browsers
+        fallbackDownload(item);
+    }
+}
+
+function fallbackDownload(item) {
+    const blob = new Blob([item.edi], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = item.fileName;
+    a.click();
+}
 
         function deleteRecord(id) {
             if(!confirm("Permanently delete record?")) return;
@@ -231,3 +243,4 @@
     </script>
 </body>
 </html>
+
