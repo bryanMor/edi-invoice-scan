@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SnapEDI Pro v2.6</title>
+    <title>SnapEDI Pro v2.7</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -18,8 +18,8 @@
 
     <nav class="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-50 flex justify-between items-center shadow-sm">
         <div>
-            <h1 class="text-xl font-black text-indigo-600 tracking-tighter uppercase italic">SnapEDI <span class="text-slate-400 font-bold text-xs italic">v2.6</span></h1>
-            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Margin-Guard & Grid-Lock</p>
+            <h1 class="text-xl font-black text-indigo-600 tracking-tighter uppercase italic">SnapEDI <span class="text-slate-400 font-bold text-xs italic">v2.7</span></h1>
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Reverse-Math Engine</p>
         </div>
         <button onclick="toggleSettings()" class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500 border border-slate-100">
             <i class="fa-solid fa-sliders"></i>
@@ -29,7 +29,7 @@
     <main class="max-w-xl mx-auto p-6 space-y-6">
         <div class="bg-white rounded-[2.5rem] p-6 shadow-xl border border-slate-100">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Image Queue</h3>
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Upload Queue</h3>
                 <label class="text-indigo-600 font-black text-[11px] cursor-pointer bg-indigo-50 px-4 py-2 rounded-xl active:scale-95 transition-all">
                     <i class="fa-solid fa-file-image mr-1"></i> SELECT IMAGES
                     <input type="file" id="fileInput" multiple accept="image/*" class="hidden" onchange="handleFileSelect(event)">
@@ -39,13 +39,13 @@
             <div id="imagePreviewGrid" class="grid grid-cols-3 gap-3 mb-6"></div>
 
             <button id="processBtn" onclick="processBatch()" class="hidden w-full bg-indigo-600 text-white py-5 rounded-[1.5rem] font-black text-sm shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all">
-                <i class="fa-solid fa-bolt-lightning"></i> START AUDIT
+                <i class="fa-solid fa-calculator"></i> RUN MATH AUDIT
             </button>
         </div>
 
         <div id="loader" class="hidden text-center py-10">
             <div class="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest animate-pulse">Calculating Margins & Grid-Lock...</p>
+            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest animate-pulse">Calculating Pack Sizes...</p>
         </div>
 
         <div id="resultsCard" class="hidden space-y-4">
@@ -63,27 +63,18 @@
         <div class="absolute right-0 top-0 bottom-0 w-72 bg-white p-8 shadow-2xl">
             <h2 class="text-xl font-black mb-6 uppercase italic">Config</h2>
             <div class="space-y-6">
-                <div>
-                    <label class="text-[10px] font-bold text-slate-400 uppercase">Target Margin %</label>
-                    <input id="targetMargin" type="number" value="25" class="w-full bg-slate-50 border p-3 rounded-xl mb-4 font-bold">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase">Gemini API Key</label>
-                    <input id="apiKey" type="password" class="w-full bg-slate-50 border p-3 rounded-xl font-bold">
-                </div>
-                <button onclick="saveSettings()" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-sm">SAVE</button>
+                <input id="apiKey" type="password" class="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl text-sm font-bold" placeholder="Gemini API Key">
+                <button onclick="saveSettings()" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-sm">SAVE KEY</button>
             </div>
         </div>
     </div>
 
     <script>
-        let history = JSON.parse(localStorage.getItem('snap_history_v26') || '[]');
+        let history = JSON.parse(localStorage.getItem('snap_history_v27') || '[]');
         let selectedFiles = [];
 
         function toggleSettings() { document.getElementById('settings').classList.toggle('hidden'); }
-        function saveSettings() { 
-            localStorage.setItem('snap_key', document.getElementById('apiKey').value); 
-            localStorage.setItem('snap_margin', document.getElementById('targetMargin').value);
-            toggleSettings(); 
-        }
+        function saveSettings() { localStorage.setItem('snap_key', document.getElementById('apiKey').value); toggleSettings(); }
 
         function handleFileSelect(e) {
             const files = Array.from(e.target.files);
@@ -109,79 +100,73 @@
         function removeFile(id) { selectedFiles = selectedFiles.filter(f => f.id !== id); renderPreviews(); }
 
         async function processBatch() {
-    const key = document.getElementById('apiKey').value;
-    if(!key) return alert("API Key Missing");
-    document.getElementById('loader').classList.remove('hidden');
-    document.getElementById('processBtn').classList.add('hidden');
+            const key = document.getElementById('apiKey').value;
+            if(!key) return alert("API Key Missing");
+            document.getElementById('loader').classList.remove('hidden');
+            document.getElementById('processBtn').classList.add('hidden');
 
-    try {
-        // UPDATED MASTER PROMPT: INCLUDES ALL 9 LOGIC POINTS
-        const prompt = `Strict Universal Brand-Aware Grid-Lock Extraction:
+            try {
+                // *** THE REVERSE-MATH PROMPT ***
+                const prompt = `Strict EDI Extraction with Reverse-Math Logic:
 
-        1. STEP ONE (VERIFY & LOCK): 
-           - Analyze the first 2 item rows. Identify the Brand (e.g. '7Up', 'Modelo') to determine the correct 11-digit UPC. 
-           - If 10 digits are present, repair the leading digit based on Brand GS1 knowledge.
-           - Once verified, LOCK the vertical column coordinates for ITEM#, UPC, DESC, NET COST, QTY, and SSP.
+                1. COLUMN ANCHORS (Use these to find data):
+                   - SKU: Look at Column 1 ("ITEM#"). Extract this exactly.
+                   - UPC: Look at Column 4 ("U.P.C."). Remove leading zeros to get exactly 11 digits.
+                   - NET COST: Look at the "NET" column. This is the Case Cost.
+                   - SSP: Look at the "SSP" column. This is Unit Retail.
 
-        2. DELIMITER & PRECISION:
-           - SKU: If merged (e.g. 078.../100...), split it. Return exactly the LAST 5 digits.
-           - UPC: Return exactly 11 digits.
+                2. CALCULATE "UnitsPerCase" (CRITICAL):
+                   - Do NOT trust the description text (e.g., ignore "6PK" text).
+                   - FORMULA: Divide [NET COST] by [SSP]. 
+                   - Result = Approx count. Round to nearest standard pack: 1, 2, 4, 6, 8, 10, 12, 15, 24.
+                   - EXAMPLE: If Net is $31.98 and SSP is $9.99 -> 31.98 / 9.99 = 3.2 -> Round to 4. UnitsPerCase = 4.
+                   - EXAMPLE: If Net is $15.99 and SSP is $19.99 -> 15.99 / 19.99 = 0.8 -> Round to 1. UnitsPerCase = 1.
 
-        3. PACK SIZE (UnitsPerCase) RULES:
-           - Look for "PK", "Pack", "Size", or numbers like 6, 12, 15, 24.
-           - If not explicitly in a column, infer from Description (e.g., 'Modelo 24pk' = 24).
-           - Default to 1 if absolutely no pack info is found.
-
-        4. FINANCIAL DATA (NET COST RULES):
-           - Target: "Net Case Price". This MUST be the full price for the case.
-           - Rule A: If a slash exists (e.g., 24.50/1.02), pick the LARGER number.
-           - Rule B: If only "Unit Price" is listed, you MUST multiply [Unit Price] x [UnitsPerCase] to get the Case Price.
-           - ssp: Extract single unit suggested retail.
-
-        5. JSON OUTPUT: 
-           {vendorName, invoiceDate(MMM-DD-YY), items: [{upc, description, sku, netCost, unitsPerCase, qtyOrdered, ssp}]}`;
-
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }, ...selectedFiles.map(f => ({ inline_data: { mime_type: "image/jpeg", data: f.base64.split(',')[1] } }))] }],
-                generationConfig: { responseMimeType: "application/json", temperature: 0.1 }
-            })
-        });
-
-        const data = await res.json();
-        const result = JSON.parse(data.candidates[0].content.parts[0].text);
-        finalizeOutput(result);
-    } catch (e) { alert("Processing Error"); console.error(e); }
-    finally { document.getElementById('loader').classList.add('hidden'); selectedFiles = []; renderPreviews(); }
-}
-
-        function calculateMarginGuardRetail(cost, pack, extractedSSP) {
-            const targetMargin = parseFloat(localStorage.getItem('snap_margin') || 25) / 100;
-            const unitCost = cost / pack;
-            const calculatedSSP = unitCost / (1 - targetMargin);
+                3. PACK SIZE (REVERSE-MATH LOGIC):
+                       - DO NOT rely solely on description text (e.g., ignore "6PK" text if math proves otherwise).
+                       - PRIMARY METHOD: Calculate [Net Case Cost] / [SSP (Unit Retail)].
+                       - Round the result to the nearest standard pack: 1, 2, 4, 6, 8, 12, 15, 24.
+                       - EXAMPLE: Net $31.98 / SSP $9.99 = 3.2 -> Rounds to 4. (Correct Pack is 4).
+                       - FALLBACK: Only if math fails, look for "PK"/"Size" text.
             
-            // Logic: If extracted SSP results in < 10% margin, use calculated SSP
-            const currentMargin = (extractedSSP - unitCost) / extractedSSP;
-            return (currentMargin < 0.10) ? calculatedSSP : extractedSSP;
+                4. COLUMN SPECIFICS (BONBRIGHT FIX):
+                       - SKU: If a separate "ITEM#" column exists (Column 1), extract that number.
+                       - UPC: If UPC has leading zeros (e.g. 00034...), REMOVE them to return exactly 11 digits.
+            
+                5. FINANCIAL DATA:
+                       - Target: "Net Case Price". If "Unit Price" is listed, multiply by calculated Pack Size.
+                       - Rule: If a slash exists (24.50/1.02), pick the LARGER number.
+
+                6. JSON OUTPUT: {vendorName, invoiceDate(MMM-DD-YY), items: [{upc, description, sku, netCost, unitsPerCase, qtyOrdered, ssp}]}`;
+
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }, ...selectedFiles.map(f => ({ inline_data: { mime_type: "image/jpeg", data: f.base64.split(',')[1] } }))] }],
+                        generationConfig: { responseMimeType: "application/json", temperature: 0.1 }
+                    })
+                });
+
+                const data = await res.json();
+                const result = JSON.parse(data.candidates[0].content.parts[0].text);
+                finalizeOutput(result);
+            } catch (e) { alert("Processing Error"); console.error(e); }
+            finally { document.getElementById('loader').classList.add('hidden'); selectedFiles = []; renderPreviews(); }
         }
 
         function generateBRecord(item) {
             const num = (v) => String(v || "").replace(/\D/g, "");
             const money = (v) => Math.round((Number(v) || 0) * 100).toString().replace(/\D/g, "");
             
-            const pack = parseInt(item.unitsPerCase) || 1;
-            const finalSSP = calculateMarginGuardRetail(parseFloat(item.netCost), pack, parseFloat(item.ssp));
-
             let r = "B"; 
             r += num(item.upc).padEnd(11, '0').slice(0, 11); // Pos 2-12
             r += String(item.description || "").toUpperCase().substring(0, 26).padEnd(26, ' '); // Pos 13-38
-            r += num(item.sku).padStart(5, '0').slice(-5); // Pos 39-43 (5-digits)
-            r += money(item.netCost).padStart(6, '0').slice(-6); // Pos 44-49 (6-digits)
-            r += "CS" + pack.toString().padStart(6, '0').slice(-6); // Pos 50-57
+            r += num(item.sku).padStart(5, '0').slice(-5); // Pos 39-43 (Corrected)
+            r += money(item.netCost).padStart(6, '0').slice(-6); // Pos 44-49 (Corrected)
+            r += "CS" + num(item.unitsPerCase || 1).padStart(6, '0').slice(-6); // Pos 50-57
             r += "+" + num(item.qtyOrdered || 1).padStart(4, '0').slice(-4); // Pos 58-62
-            r += money(finalSSP).padStart(5, '0').slice(-5) + "001"; // Pos 63-70
+            r += money(item.ssp || 0).padStart(5, '0').slice(-5) + "001"; // Pos 63-70
             
             return r;
         }
@@ -190,7 +175,7 @@
             const edi = data.items.map(i => generateBRecord(i)).join('\n');
             const fileName = `${data.vendorName.replace(/\s/g,'').toUpperCase()}_${data.invoiceDate}.txt`;
             history.unshift({ id: Date.now(), fileName, content: edi, date: new Date().toLocaleDateString() });
-            localStorage.setItem('snap_history_v26', JSON.stringify(history.slice(0, 20)));
+            localStorage.setItem('snap_history_v27', JSON.stringify(history.slice(0, 20)));
             document.getElementById('ediPreview').innerText = edi;
             document.getElementById('resultsCard').classList.remove('hidden');
             renderHistory();
@@ -210,7 +195,7 @@
 
         function deleteRecord(id) {
             history = history.filter(h => h.id !== id);
-            localStorage.setItem('snap_history_v26', JSON.stringify(history));
+            localStorage.setItem('snap_history_v27', JSON.stringify(history));
             renderHistory();
         }
 
@@ -229,11 +214,7 @@
             `).join('');
         }
 
-        window.onload = () => { 
-            document.getElementById('apiKey').value = localStorage.getItem('snap_key') || ""; 
-            document.getElementById('targetMargin').value = localStorage.getItem('snap_margin') || "25";
-            renderHistory(); 
-        };
+        window.onload = () => { document.getElementById('apiKey').value = localStorage.getItem('snap_key') || ""; renderHistory(); };
     </script>
 </body>
 </html>
