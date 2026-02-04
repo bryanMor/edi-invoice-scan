@@ -121,7 +121,16 @@
                 1. STEP ONE (VERIFY): Analyze the first 2 item rows. Identify the Brand and determine the correct 11-digit UPC. If 10 digits are present, repair the leading digit based on Brand GS1 knowledge.
                 2. STEP TWO (LOCK): Once first 2 items are verified, LOCK the vertical column coordinates for ITEM#, UPC, DESC, NET CASE COST, QTY ORDERED, and SSP.
                 3. DELIMITER: Split merged UPC/SKU strings (e.g. 078.../100...).
-                4. JSON: {vendorName, invoiceDate(MMM-DD-YY), items: [{upc, description, sku, netCost, unitsPerCase, qtyOrdered, ssp}]}`;
+                4. PRECISION: Return exactly 11 digits for 'upc', exactly 5 digits for 'sku', and extract 'description' and 'qtyOrdered' and 'netCost' and 'ssp'
+                5. Find the "UnitsPerCase" (Pack/Size): Look for numbers like 12, 24, 15, 4, 6, or 8.
+                6. Find the "NetCost": This MUST be the Case Price. If the invoice only shows Unit Price, multiply it by UnitsPerCase to calculate the Case Price.
+                7. UNIT-PER-CASE RULES:
+                   - Search for "PK", "Pack", or "Size" (e.g., '24/12 OZ' means unitsPerCase is 24).
+                   - If no pack is listed, identify the product (e.g., 'Modelo 24pk') and assign the standard pack size.
+                8. NET COST RULES:
+                   - Identify the "Net Case Price" (after any discounts). 
+                   - If a 'Slash' (/) is present in the price column (e.g., 24.50/1.02), identify the larger number as the Case Cost.
+                9. JSON: {vendorName, invoiceDate(MMM-DD-YY), items: [{upc, description, sku, netCost, unitsPerCase, qtyOrdered, ssp}]}`;
 
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
                     method: 'POST',
@@ -198,3 +207,4 @@
     </script>
 </body>
 </html>
+
