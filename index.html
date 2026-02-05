@@ -111,7 +111,7 @@
 
     1. STEP ONE: VERIFY & LOCK (FIRST 2 ITEMS):
        - Analyze the first 2 item rows. Identify the Brand (e.g., 'Modelo', '7Up', 'Best Ice').
-       - Solve the 11-digit UPC: If 10 digits are shown, repair the leading digit based on Brand GS1 rules (e.g., 7Up/Dr.Pepper = 0).
+       - Solve the 11-digit UPC: If 10 digits are shown, repair the leading digit based on Brand GS1 rules (e.g., 7Up/Dr.Pepper = 0). If 12 digits are shown, use the first 11 digits only.
        - Once verified, LOCK the vertical column coordinates for ITEM#, UPC, DESC, NET COST, and SSP.
 
     2. COLUMN ANCHORS & DATA PRECISION (MANDATORY):
@@ -231,5 +231,6 @@
     </script>
 </body>
 </html>
+
 
 
