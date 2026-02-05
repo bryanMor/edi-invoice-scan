@@ -106,59 +106,46 @@
             document.getElementById('processBtn').classList.add('hidden');
 
             try {
-              // *** THE SNAP-EDI UNIVERSAL PROMPT (v3.1) ***
-const prompt = `Strict Universal Brand-Aware EDI Extraction:
+            // *** THE SNAP-EDI UNIVERSAL PROMPT (v4.8) ***
+const prompt = `PRE-READ INSTRUCTION: 
+Read the entire Prompt. Identify column headers on the first two lines. Once verified, LOCK coordinates.
 
-Pretext: Read the entire Prompt to understand what to look for before processing the data. Once all the correct data is found on the first two lines, THEN do the COLUMNS LOCK.
+--- STRICT EXTRACTION LOGIC ---
 
-1. STEP ONE: IDENTIFY WHOLESALER PROFILE:
-   - PROFILE A (Master Case - Bonbright/Heidelberg): Uses slashes ("2/15"). Inventory count is the multiplier (2).
-   - PROFILE B (Direct Case - 7Up/Coke/Pepsi): Inventory count is usually "1" (1 case).
-   - PROFILE C (Units): Inventory count is "1".
+1. DESCRIPTION EXTRACTION (LITERAL PASSTHROUGH):
+   - ACTION: Capture the product description EXACTLY as written. Do NOT clean or reformat. Include all codes/symbols.
 
-2. VERIFY & LOCK (FIRST 2 ITEMS):
-   - Analyze first 2 rows. Identify Brand.
-   - LOCK columns: SKU (Col 1), UPC (Col 4), NET COST, UNITS, SSP.
-   - SEARCH for a "UNITS" or "PACK" column.
+2. UPC RECONSTRUCTION (11-DIGIT MANDATORY):
+   - IF 12 digits: Use only the FIRST 11.
+   - IF 13 digits (00...): Strip first two zeros.
+   - IF 10 digits: Search [Description + Category] on web to find the leading 11th digit. Verify it matches the product.
 
-3. UPC STRIPPING (PRECISION):
-   - If 13 digits (00034...), STRIP first 2 zeros -> 11 digits.
-   - If 12 digits, STRIP LAST DIGIT -> 11 digits.
-   - If 10 digits, find the missing leading digits by using web search from the despcription and vendor name -> 11 digits.
-   
-5. SKU: Return exactly LAST 5 digits from Column 1. Its sometimes called Item #.
+3. CALCULATE "UnitsPerCase" (HIERARCHY OF TRUTH):
+   - STEP 1: [UNITS] / [CASES] columns.
+   - STEP 2: Slash in description (e.g., "2/15" = 2).
+   - STEP 3: Text clues (e.g., "5CT" = 5, "24PK" = 24).
+   - STEP 4: Reverse math: [Net Cost] / [Retail Price], snapped to nearest standard pack.
 
-6. CALCULATE "UnitsPerCase" (HIERARCHY OF TRUTH):
-   
-   - PRIORITY 1: THE "SLASH" RULE (Overrides Column):
-     * IF description has a slash (e.g. "2/15", "4/6", "2/12"):
-     * ACTION: The FIRST number is the UnitsPerCase. 
-     * Example: "BEST ICE 2/15" -> UnitsPerCase = 2. (Even if Pack Column says 15, ignore it. You are receiving 2 cases).
+4. PROFIT MARGIN VALIDATION (THE SAFETY NET):
+   - ACTION: Perform this check before finalizing UnitsPerCase: 
+     Margin % = (1 - ((NetCost / UnitsPerCase) / SSP)) * 100.
+   - VALID RANGE: 15% to 60%. If the result is outside this range, re-evaluate Step 3. 
 
-   - PRIORITY 2: THE "UNITS" COLUMN:
-     * IF no slash exists, look for a column labeled "PACK", "SIZE", or "UNITS".
-     * Extract that number.
-     * EXCEPTION: If the number is > 10 (e.g. 24) AND the Vendor is "7Up" or "Coke", change it to "1". (You buy 1 case of 24, not 24 cases).
+5. DATA MAPPING & QUANTITY:
+   - QTY ORDERED: Use "CASES" column. (Qty must represent physical boxes/cases).
+   - SKU: Exactly the LAST 5 digits of the SKU/Item field.
+   - NET COST: Use "NET" column (Case Price).
+   - SSP: Extract the Suggested Selling Price for the full pack.
+   - UOM: Extract Unit of Measure (PC, CS, etc.).
 
-   - PRIORITY 3: REVERSE-MATH (Fallback):
-     * Calculate: [Net Cost] / [SSP].
-     * Round to nearest: 1, 2, 4, 6, 8, 12, 15, 24.
-     * Example: $35.93 / $47.91 = 0.75 -> Round to 1.
-
-6. PROFIT MARGIN VALIDATION (THE FINAL GUARDRAIL):
-   - Calculate Margin % = (1 - ( (NetCost / UnitsPerCase) / SSP )) * 100.
-   - TARGET RANGES:
-     * BONBRIGHT: 18-22% (If Margin > 60%, check for a slash/multiplier you missed).
-     * 7UP/DAYTON: 30-55%.
-     * OTHERS: 15-45%.
-   - ACTION: If Margin is out of range, adjust UnitsPerCase until it fits.
-
-7. JSON OUTPUT: 
+6. JSON OUTPUT: 
    {
-     "vendorName": "Extract Vendor",
-     "invoiceDate": "MMM-DD-YY",
-     "items": [{ "upc": "11 digits", "sku": "5 digits", "netCost": "decimal", "unitsPerCase": "integer", "qtyOrdered": "integer", "ssp": "decimal", "description": "text" }]
+     "upc": "string", "sku": "string", "description": "string", 
+     "netCost": float, "unitsPerCase": int, "qtyOrdered": int, 
+     "ssp": float, "uom": "string"
    }`;
+
+
 
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
                     method: 'POST',
@@ -176,21 +163,51 @@ Pretext: Read the entire Prompt to understand what to look for before processing
             finally { document.getElementById('loader').classList.add('hidden'); selectedFiles = []; renderPreviews(); }
         }
 
-        function generateBRecord(item) {
-            const num = (v) => String(v || "").replace(/\D/g, "");
-            const money = (v) => Math.round((Number(v) || 0) * 100).toString().replace(/\D/g, "");
-            
-            let r = "B";
-            r += num(item.upc).padStart(11, '0').slice(-11); // Pos 2-12
-            r += String(item.description || "").toUpperCase().substring(0, 26).padEnd(26, ' '); // Pos 13-38
-            r += num(item.sku).padStart(5, '0').slice(-5); // Pos 39-43 (Corrected)
-            r += money(item.netCost).padStart(6, '0').slice(-6); // Pos 44-49 (Corrected)
-            r += "CS" + num(item.unitsPerCase || 1).padStart(6, '0').slice(-6); // Pos 50-57
-            r += "+" + num(item.qtyOrdered || 1).padStart(4, '0').slice(-4); // Pos 58-62
-            r += money(item.ssp || 0).padStart(5, '0').slice(-5) + "001"; // Pos 63-70
-            
-            return r;
-        }
+        /**
+ * Snap-EDI Execution Engine v4.7
+ * STRICT 70-CHARACTER FIXED-WIDTH OUTPUT
+ */
+function generateBRecord(item) {
+    const recType = "B";                                            // 1
+    const upc = item.upc.toString().padEnd(11, ' ').slice(0, 11);    // 11
+    const desc = item.description.padEnd(26, ' ').slice(0, 26);     // 26
+    const sku = item.sku.toString().padStart(5, '0').slice(-5);     // 5
+    const cost = Math.round(item.netCost * 100).toString().padStart(6, '0'); // 6
+    
+    // UOM (2) + Pack Size (6)
+    const uom = (item.uom || "PC").padEnd(2, ' ').slice(0, 2);
+    const pack = item.unitsPerCase.toString().padStart(6, '0');
+    const packField = uom + pack;                                   // 8
+    
+    // QTY: Fixed "+" then 4-digit Qty
+    const qtyField = "+" + item.qtyOrdered.toString().padStart(4, '0'); // 5
+    
+    // SSP: Fixed 5-digit SRP
+    const sspField = Math.round(item.ssp * 100).toString().padStart(5, '0').slice(-5); // 5
+    
+    // FIXED TRAILER
+    const trailer = "001";                                          // 3
+
+    // TOTAL: 1+11+26+5+6+8+5+5+3 = 70 characters
+    return `${recType}${upc}${desc}${sku}${cost}${packField}${qtyField}${sspField}${trailer}`;
+}
+
+// --- VALIDATION TEST ---
+const veloExample = {
+    "upc": "84017061811",
+    "sku": "58688",
+    "description": "VELO+ PCH MINT 9MG 5CT",
+    "netCost": 21.82,
+    "uom": "PC",
+    "unitsPerCase": 5,
+    "qtyOrdered": 2,
+    "ssp": 6.25 // $6.25 -> 00625
+};
+
+console.log("FINAL 70-CHAR EDI LINE:");
+console.log(generateBRecord(veloExample));
+// Result: B84017061811VELO+ PCH MINT 9MG 5CT     58688002182PC000005+000200625001
+
 
         function finalizeOutput(data) {
             const edi = data.items.map(i => generateBRecord(i)).join('\n');
@@ -239,6 +256,7 @@ Pretext: Read the entire Prompt to understand what to look for before processing
     </script>
 </body>
 </html>
+
 
 
 
