@@ -106,38 +106,52 @@
             document.getElementById('processBtn').classList.add('hidden');
 
             try {
-                // *** THE REVERSE-MATH PROMPT ***
-                const prompt = `Strict EDI Extraction with Reverse-Math Logic:
+    // *** THE ULTIMATE GRID-LOCK & REVERSE-MATH PROMPT (v2.9) ***
+    const prompt = `Strict Universal Brand-Aware EDI Extraction:
 
-                1. COLUMN ANCHORS (Use these to find data):
-                   - SKU: Look at Column 1 ("ITEM#"). Extract this exactly.
-                   - UPC: Look at Column 4 ("U.P.C."). Remove leading zeros to get exactly 11 digits.
-                   - NET COST: Look at the "NET" column. This is the Case Cost.
-                   - SSP: Look at the "SSP" column. This is Unit Retail.
+    1. STEP ONE: VERIFY & LOCK (FIRST 2 ITEMS):
+       - Analyze the first 2 item rows. Identify the Brand (e.g., 'Modelo', '7Up', 'Best Ice').
+       - Solve the 11-digit UPC: If 10 digits are shown, repair the leading digit based on Brand GS1 rules (e.g., 7Up/Dr.Pepper = 0).
+       - Once verified, LOCK the vertical column coordinates for ITEM#, UPC, DESC, NET COST, and SSP.
 
-                2. CALCULATE "UnitsPerCase" (CRITICAL):
-                   - Do NOT trust the description text (e.g., ignore "6PK" text).
-                   - FORMULA: Divide [NET COST] by [SSP]. 
-                   - Result = Approx count. Round to nearest standard pack: 1, 2, 4, 6, 8, 10, 12, 15, 24.
-                   - EXAMPLE: If Net is $31.98 and SSP is $9.99 -> 31.98 / 9.99 = 3.2 -> Round to 4. UnitsPerCase = 4.
-                   - EXAMPLE: If Net is $15.99 and SSP is $19.99 -> 15.99 / 19.99 = 0.8 -> Round to 1. UnitsPerCase = 1.
+    2. COLUMN ANCHORS & DATA PRECISION (MANDATORY):
+       - SKU: Extract from Column 1 ("ITEM#") or after the slash (/) if merged. Return exactly the LAST 5 digits.
+       - UPC: Extract from Column 4 ("U.P.C."). Return exactly 11 digits.
+       - NET COST: Extract from the "NET" or "EXT PRICE" column. This MUST be the Case Price.
+       - SSP: Extract from the "SSP" or "RETAIL" column. This is the Unit Retail.
 
-                3. PACK SIZE (REVERSE-MATH LOGIC):
-                       - DO NOT rely solely on description text (e.g., ignore "6PK" text if math proves otherwise).
-                       - PRIMARY METHOD: Calculate [Net Case Cost] / [SSP (Unit Retail)].
-                       - Round the result to the nearest standard pack: 1, 2, 4, 6, 8, 12, 15, 24.
-                       - EXAMPLE: Net $31.98 / SSP $9.99 = 3.2 -> Rounds to 4. (Correct Pack is 4).
-                       - FALLBACK: Only if math fails, look for "PK"/"Size" text.
-            
-                4. COLUMN SPECIFICS (BONBRIGHT FIX):
-                       - SKU: If a separate "ITEM#" column exists (Column 1), extract that number.
-                       - UPC: If UPC has leading zeros (e.g. 00034...), REMOVE them to return exactly 11 digits.
-            
-                5. FINANCIAL DATA:
-                       - Target: "Net Case Price". If "Unit Price" is listed, multiply by calculated Pack Size.
-                       - Rule: If a slash exists (24.50/1.02), pick the LARGER number.
+    3. UPC STRIPPING RULE (BONBRIGHT FIX):
+       - If the invoice shows 13-digit UPCs (e.g., 0003410030344):
+       - ACTION: STRIP the first TWO leading zeros to arrive at exactly 11 digits.
+       - EXAMPLE: 0003410030344 becomes 03410030344.
+       - ALWAYS return exactly 11 digits.
 
-                6. JSON OUTPUT: {vendorName, invoiceDate(MMM-DD-YY), items: [{upc, description, sku, netCost, unitsPerCase, qtyOrdered, ssp}]}`;
+    4. REVERSE-MATH PACK SIZE (CRITICAL FOR MARGINS):
+       - DO NOT rely on description text (ignore "6PK", "12PK" text if it contradicts math).
+       - PRIMARY RULE: Divide [NET COST] by [SSP]. 
+       - Round result to nearest standard pack: 1, 2, 4, 6, 8, 10, 12, 15, 24, 30.
+       - EXAMPLE: $31.98 / $9.99 = 3.2 -> Round to 4. unitsPerCase = 4.
+       - EXAMPLE: $19.19 / $11.99 = 1.6 -> Round to 2. unitsPerCase = 2.
+
+    5. FINANCIAL DATA RULES:
+       - Target: "Net Case Price" (after discounts). 
+       - Rule A: If a slash exists in the price (e.g., 24.50/1.02), pick the LARGER number as the Net Cost.
+       - Rule B: If the invoice ONLY lists a Unit Price, you MUST multiply [Unit Price] x [unitsPerCase] to calculate the Net Cost.
+
+    6. JSON OUTPUT: 
+       {
+         "vendorName": "Extract Vendor",
+         "invoiceDate": "MMM-DD-YY",
+         "items": [{
+           "upc": "11 digits",
+           "description": "text",
+           "sku": "5 digits",
+           "netCost": "decimal",
+           "unitsPerCase": "integer",
+           "qtyOrdered": "integer",
+           "ssp": "decimal"
+         }]
+       }`;
 
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
                     method: 'POST',
@@ -159,8 +173,8 @@
             const num = (v) => String(v || "").replace(/\D/g, "");
             const money = (v) => Math.round((Number(v) || 0) * 100).toString().replace(/\D/g, "");
             
-            let r = "B"; 
-            r += num(item.upc).padEnd(11, '0').slice(0, 11); // Pos 2-12
+            let r = "B";
+            r += num(item.upc).padStart(11, '0').slice(-11); // Pos 2-12
             r += String(item.description || "").toUpperCase().substring(0, 26).padEnd(26, ' '); // Pos 13-38
             r += num(item.sku).padStart(5, '0').slice(-5); // Pos 39-43 (Corrected)
             r += money(item.netCost).padStart(6, '0').slice(-6); // Pos 44-49 (Corrected)
@@ -218,3 +232,4 @@
     </script>
 </body>
 </html>
+
