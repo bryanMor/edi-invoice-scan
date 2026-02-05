@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SnapEDI Pro v2.7</title>
+    <title>SnapEDI Pro v2.9</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -18,7 +18,7 @@
 
     <nav class="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-50 flex justify-between items-center shadow-sm">
         <div>
-            <h1 class="text-xl font-black text-indigo-600 tracking-tighter uppercase italic">SnapEDI <span class="text-slate-400 font-bold text-xs italic">v2.7</span></h1>
+            <h1 class="text-xl font-black text-indigo-600 tracking-tighter uppercase italic">SnapEDI <span class="text-slate-400 font-bold text-xs italic">v2.9</span></h1>
             <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Reverse-Math Engine</p>
         </div>
         <button onclick="toggleSettings()" class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500 border border-slate-100">
@@ -100,52 +100,54 @@
         function removeFile(id) { selectedFiles = selectedFiles.filter(f => f.id !== id); renderPreviews(); }
 
         async function processBatch() {
-            const key = document.getElementById('apiKey').value;
+            const key = document.getElementById('apiKey').value || localStorage.getItem('snap_key');
             if(!key) return alert("API Key Missing");
             document.getElementById('loader').classList.remove('hidden');
             document.getElementById('processBtn').classList.add('hidden');
+            document.getElementById('resultsCard').classList.add('hidden');
 
             try {
-            // *** THE SNAP-EDI UNIVERSAL PROMPT (v4.8) ***
-const prompt = `PRE-READ INSTRUCTION: 
-Read the entire Prompt. Identify column headers on the first two lines. Once verified, LOCK coordinates.
+                // *** THE SNAP-EDI UNIVERSAL PROMPT (v4.9 - GRID LOCK) ***
+                const prompt = `PRE-READ INSTRUCTION: 
+                First, identify column headers. Once column positions for [UPC, Description, Net, SRP] are found, LOCK these coordinates as a "Column Grid." Apply this grid logic consistently to every line item found across the entire invoice to ensure perfect data alignment.
 
---- STRICT EXTRACTION LOGIC ---
+                --- STRICT EXTRACTION LOGIC ---
 
-1. DESCRIPTION EXTRACTION (LITERAL PASSTHROUGH):
-   - ACTION: Capture the product description EXACTLY as written. Do NOT clean or reformat. Include all codes/symbols.
+                1. DESCRIPTION EXTRACTION (LITERAL PASSTHROUGH):
+                   - ACTION: Capture the product description EXACTLY as written. Do NOT clean or reformat. Include all codes/symbols.
 
-2. UPC RECONSTRUCTION (11-DIGIT MANDATORY):
-   - IF 12 digits: Use only the FIRST 11.
-   - IF 13 digits (00...): Strip first two zeros.
-   - IF 10 digits: Search [Description + Category] on web to find the leading 11th digit. Verify it matches the product.
+                2. UPC RECONSTRUCTION (11-DIGIT MANDATORY):
+                   - IF 12 digits: Use only the FIRST 11.
+                   - IF 13 digits (00...): Strip first two zeros.
+                   - IF 10 digits: Search [Description + Category] on web to find the leading 11th digit. Verify it matches the product.
 
-3. CALCULATE "UnitsPerCase" (HIERARCHY OF TRUTH):
-   - STEP 1: [UNITS] / [CASES] columns.
-   - STEP 2: Slash in description (e.g., "2/15" = 2).
-   - STEP 3: Text clues (e.g., "5CT" = 5, "24PK" = 24).
-   - STEP 4: Reverse math: [Net Cost] / [Retail Price], snapped to nearest standard pack.
+                3. CALCULATE "UnitsPerCase" (HIERARCHY OF TRUTH):
+                   - STEP 1: [UNITS] / [CASES] columns.
+                   - STEP 2: Slash in description (e.g., "2/15" = 2).
+                   - STEP 3: Text clues (e.g., "5CT" = 5, "24PK" = 24).
+                   - STEP 4: Reverse math: [Net Cost] / [Retail Price], snapped to nearest standard pack.
 
-4. PROFIT MARGIN VALIDATION (THE SAFETY NET):
-   - ACTION: Perform this check before finalizing UnitsPerCase: 
-     Margin % = (1 - ((NetCost / UnitsPerCase) / SSP)) * 100.
-   - VALID RANGE: 15% to 60%. If the result is outside this range, re-evaluate Step 3. 
+                4. PROFIT MARGIN VALIDATION (THE SAFETY NET):
+                   - ACTION: Perform this check before finalizing UnitsPerCase: 
+                     Margin % = (1 - ((NetCost / UnitsPerCase) / SSP)) * 100.
+                   - VALID RANGE: 15% to 60%. If the result is outside this range, re-evaluate Step 3. 
 
-5. DATA MAPPING & QUANTITY:
-   - QTY ORDERED: Use "CASES" column. (Qty must represent physical boxes/cases).
-   - SKU: Exactly the LAST 5 digits of the SKU/Item field.
-   - NET COST: Use "NET" column (Case Price).
-   - SSP: Extract the Suggested Selling Price for the full pack.
-   - UOM: Extract Unit of Measure (PC, CS, etc.).
+                5. DATA MAPPING & QUANTITY:
+                   - QTY ORDERED: Use "CASES" column. (Qty must represent physical boxes/cases).
+                   - SKU: Exactly the LAST 5 digits of the SKU/Item field.
+                   - NET COST: Use "NET" column (Price per Case).
+                   - SSP: Extract the Suggested Selling Price for the ONE SINGLE UNIT.
+                   - UOM: Extract Unit of Measure (PC, CS, etc.).
 
-6. JSON OUTPUT: 
-   {
-     "upc": "string", "sku": "string", "description": "string", 
-     "netCost": float, "unitsPerCase": int, "qtyOrdered": int, 
-     "ssp": float, "uom": "string"
-   }`;
-
-
+                --- JSON OUTPUT ---
+                {
+                  "vendorName": "string",
+                  "items": [{
+                    "upc": "string", "sku": "string", "description": "string", 
+                    "netCost": float, "unitsPerCase": int, "qtyOrdered": int, 
+                    "ssp": float, "uom": "string"
+                  }]
+                }`;
 
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
                     method: 'POST',
@@ -158,76 +160,64 @@ Read the entire Prompt. Identify column headers on the first two lines. Once ver
 
                 const data = await res.json();
                 const result = JSON.parse(data.candidates[0].content.parts[0].text);
-                finalizeOutput(result);
-            } catch (e) { alert("Processing Error"); console.error(e); }
-            finally { document.getElementById('loader').classList.add('hidden'); selectedFiles = []; renderPreviews(); }
+                
+                // Process into EDI string
+                const ediContent = finalizeOutput(result);
+
+                if (ediContent && ediContent !== "NO_DATA_FOUND") {
+                    document.getElementById('ediPreview').textContent = ediContent;
+                    document.getElementById('resultsCard').classList.remove('hidden');
+
+                    const historyEntry = {
+                        id: Date.now(),
+                        fileName: `EDI_${result.vendorName || 'VENDOR'}_${Date.now()}.txt`,
+                        date: new Date().toLocaleString(),
+                        content: ediContent
+                    };
+                    history.unshift(historyEntry);
+                    localStorage.setItem('snap_history_v27', JSON.stringify(history));
+                    renderHistory();
+                }
+
+            } catch (e) { 
+                alert("Processing Error"); 
+                console.error(e); 
+            } finally { 
+                document.getElementById('loader').classList.add('hidden'); 
+                selectedFiles = []; 
+                renderPreviews(); 
+            }
         }
 
         /**
- * Snap-EDI Execution Engine v4.7
- * STRICT 70-CHARACTER FIXED-WIDTH OUTPUT
- */
-function generateBRecord(item) {
-    const recType = "B";                                            // 1
-    const upc = item.upc.toString().padEnd(11, ' ').slice(0, 11);    // 11
-    const desc = item.description.padEnd(26, ' ').slice(0, 26);     // 26
-    const sku = item.sku.toString().padStart(5, '0').slice(-5);     // 5
-    const cost = Math.round(item.netCost * 100).toString().padStart(6, '0'); // 6
-    
-    // UOM (2) + Pack Size (6)
-    const uom = (item.uom || "PC").padEnd(2, ' ').slice(0, 2);
-    const pack = item.unitsPerCase.toString().padStart(6, '0');
-    const packField = uom + pack;                                   // 8
-    
-    // QTY: Fixed "+" then 4-digit Qty
-    const qtyField = "+" + item.qtyOrdered.toString().padStart(4, '0'); // 5
-    
-    // SSP: Fixed 5-digit SRP
-    const sspField = Math.round(item.ssp * 100).toString().padStart(5, '0').slice(-5); // 5
-    
-    // FIXED TRAILER
-    const trailer = "001";                                          // 3
+         * Snap-EDI Execution Engine v4.9
+         * STRICT 70-CHARACTER ALIGNMENT
+         */
+        function generateBRecord(item) {
+            if (!item || !item.upc) return "";
+            const recType = "B";                                             // 1
+            const upc = (item.upc || "").toString().padEnd(11, ' ').slice(0, 11); // 11
+            const desc = (item.description || "").padEnd(26, ' ').slice(0, 26);   // 26
+            const sku = (item.sku || "").toString().padStart(5, '0').slice(-5);   // 5
+            const cost = Math.round((item.netCost || 0) * 100).toString().padStart(6, '0'); // 6
+            const uom = (item.uom || "PC").padEnd(2, ' ').slice(0, 2);            // 2
+            const pack = (item.unitsPerCase || 0).toString().padStart(6, '0');    // 6
+            const qty = "+" + (item.qtyOrdered || 0).toString().padStart(4, '0'); // 5
+            const ssp = Math.round((item.ssp || 0) * 100).toString().padStart(5, '0').slice(-5); // 5
+            const trailer = "001";                                           // 3
 
-    // TOTAL: 1+11+26+5+6+8+5+5+3 = 70 characters
-    return `${recType}${upc}${desc}${sku}${cost}${packField}${qtyField}${sspField}${trailer}`;
-}
+            // Total: 1+11+26+5+6+2+6+5+5+3 = 70
+            return `${recType}${upc}${desc}${sku}${cost}${uom}${pack}${qty}${ssp}${trailer}`;
+        }
 
-// --- VALIDATION TEST ---
-const veloExample = {
-    "upc": "84017061811",
-    "sku": "58688",
-    "description": "VELO+ PCH MINT 9MG 5CT",
-    "netCost": 21.82,
-    "uom": "PC",
-    "unitsPerCase": 5,
-    "qtyOrdered": 2,
-    "ssp": 6.25 // $6.25 -> 00625
-};
+        function finalizeOutput(data) {
+            let items = [];
+            if (data && data.items) { items = data.items; } 
+            else if (data && data.upc) { items = [data]; }
 
-console.log("FINAL 70-CHAR EDI LINE:");
-console.log(generateBRecord(veloExample));
-// Result: B84017061811VELO+ PCH MINT 9MG 5CT     58688002182PC000005+000200625001
-
-
-       function finalizeOutput(data) {
-    // 1. Check if data exists
-    if (!data) {
-        console.error("Error: No data received from AI.");
-        return "";
-    }
-
-    // 2. Ensure 'items' is an array before calling .map()
-    // This fixes the 'reading map' TypeError
-    const items = data.items || []; 
-    
-    if (items.length === 0) {
-        console.warn("Warning: Items list is empty.");
-        return "";
-    }
-
-    // 3. Process the items into B-Records
-    return items.map(item => generateBRecord(item)).join('\n');
-}
+            if (items.length === 0) return "NO_DATA_FOUND";
+            return items.map(item => generateBRecord(item)).filter(l => l.length > 0).join('\n');
+        }
 
         async function exportFile(id) {
             const item = history.find(h => h.id == id);
@@ -266,11 +256,3 @@ console.log(generateBRecord(veloExample));
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
