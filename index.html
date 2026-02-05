@@ -209,15 +209,25 @@ console.log(generateBRecord(veloExample));
 // Result: B84017061811VELO+ PCH MINT 9MG 5CT     58688002182PC000005+000200625001
 
 
-        function finalizeOutput(data) {
-            const edi = data.items.map(i => generateBRecord(i)).join('\n');
-            const fileName = `${data.vendorName.replace(/\s/g,'').toUpperCase()}_${data.invoiceDate}.txt`;
-            history.unshift({ id: Date.now(), fileName, content: edi, date: new Date().toLocaleDateString() });
-            localStorage.setItem('snap_history_v27', JSON.stringify(history.slice(0, 20)));
-            document.getElementById('ediPreview').innerText = edi;
-            document.getElementById('resultsCard').classList.remove('hidden');
-            renderHistory();
-        }
+       function finalizeOutput(data) {
+    // 1. Check if data exists
+    if (!data) {
+        console.error("Error: No data received from AI.");
+        return "";
+    }
+
+    // 2. Ensure 'items' is an array before calling .map()
+    // This fixes the 'reading map' TypeError
+    const items = data.items || []; 
+    
+    if (items.length === 0) {
+        console.warn("Warning: Items list is empty.");
+        return "";
+    }
+
+    // 3. Process the items into B-Records
+    return items.map(item => generateBRecord(item)).join('\n');
+}
 
         async function exportFile(id) {
             const item = history.find(h => h.id == id);
@@ -256,6 +266,7 @@ console.log(generateBRecord(veloExample));
     </script>
 </body>
 </html>
+
 
 
 
