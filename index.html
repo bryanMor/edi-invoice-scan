@@ -3,57 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SnapEDI Pro v3.3</title>
+    <title>SnapEDI Pro v3.4</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
-        .mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: -0.5px; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .thumb { position: relative; aspect-ratio: 1; border-radius: 16px; overflow: hidden; border: 2px solid #e2e8f0; background: #fff; }
+        .remove-btn { position: absolute; top: 4px; right: 4px; background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 10px; display: flex; align-items: center; justify-content: center; z-index: 10; border: 2px solid white; }
     </style>
 </head>
 <body class="pb-24">
 
-    <nav class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm">
+    <nav class="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-50 flex justify-between items-center shadow-sm">
         <div>
-            <h1 class="text-xl font-black text-indigo-600 tracking-tighter uppercase italic">SnapEDI <span class="text-slate-400 font-bold text-xs italic">v3.3</span></h1>
-            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Multi-Line Correction Engine</p>
+            <h1 class="text-xl font-black text-indigo-600 tracking-tighter uppercase italic">SnapEDI <span class="text-slate-400 font-bold text-xs italic">v3.4</span></h1>
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Fixed-Zero SRP Engine</p>
         </div>
-        <button onclick="toggleSettings()" class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100"><i class="fa-solid fa-gear"></i></button>
+        <button onclick="toggleSettings()" class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500 border border-slate-100">
+            <i class="fa-solid fa-sliders"></i>
+        </button>
     </nav>
 
     <main class="max-w-xl mx-auto p-6 space-y-6">
-        <div class="bg-white rounded-[2rem] p-6 shadow-xl border border-slate-100">
+        <div class="bg-white rounded-[2.5rem] p-6 shadow-xl border border-slate-100">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Upload Queue</h3>
+                <label class="text-indigo-600 font-black text-[11px] cursor-pointer bg-indigo-50 px-4 py-2 rounded-xl active:scale-95 transition-all">
+                    <i class="fa-solid fa-file-image mr-1"></i> SELECT IMAGES
+                    <input type="file" id="fileInput" multiple accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                </label>
+            </div>
+            
             <div id="imagePreviewGrid" class="grid grid-cols-3 gap-3 mb-6"></div>
-            <label class="block w-full text-center bg-indigo-50 border-2 border-dashed border-indigo-200 py-10 rounded-[1.5rem] cursor-pointer">
-                <span class="text-xs font-black text-indigo-600 uppercase tracking-widest">Drop Invoice Here</span>
-                <input type="file" id="fileInput" multiple accept="image/*" class="hidden" onchange="handleFileSelect(event)">
-            </label>
-            <button id="processBtn" onclick="processBatch()" class="hidden w-full mt-4 bg-indigo-600 text-white py-5 rounded-[1.5rem] font-black shadow-lg">
-                RUN EXTRACTION
+
+            <button id="processBtn" onclick="processBatch()" class="hidden w-full bg-indigo-600 text-white py-5 rounded-[1.5rem] font-black text-sm shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all">
+                <i class="fa-solid fa-bolt"></i> RUN EXTRACTION
             </button>
         </div>
 
         <div id="loader" class="hidden text-center py-10">
-            <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p class="text-[10px] font-black text-slate-500 uppercase">Merging Multi-Line Records...</p>
+            <div class="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest animate-pulse">Processing Multi-Line Layout...</p>
         </div>
 
         <div id="resultsCard" class="hidden space-y-4">
-            <div class="flex justify-between px-2"><h3 class="text-[10px] font-black text-slate-400 uppercase">EDI Output (70 Char)</h3></div>
-            <div id="ediPreview" class="bg-slate-900 text-emerald-400 p-5 rounded-[1.5rem] mono leading-relaxed overflow-x-auto whitespace-pre border-l-8 border-indigo-500"></div>
+            <div id="ediPreview" class="bg-slate-900 text-sky-400 p-5 rounded-[2rem] mono text-[10px] leading-relaxed overflow-x-auto whitespace-pre border-l-4 border-emerald-500 shadow-inner"></div>
+        </div>
+
+        <div class="space-y-4">
+            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">History</h3>
+            <div id="historyList" class="space-y-3"></div>
         </div>
     </main>
 
+    <div id="settings" class="fixed inset-0 z-[60] hidden">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="toggleSettings()"></div>
+        <div class="absolute right-0 top-0 bottom-0 w-72 bg-white p-8 shadow-2xl">
+            <h2 class="text-xl font-black mb-6 uppercase italic text-indigo-600">Config</h2>
+            <div class="space-y-6">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Gemini API Key</label>
+                    <input id="apiKey" type="password" class="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl text-sm font-bold" placeholder="Paste Key Here">
+                </div>
+                <button onclick="saveSettings()" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-sm">SAVE SETTINGS</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        let history = JSON.parse(localStorage.getItem('snap_history_v34') || '[]');
         let selectedFiles = [];
+
+        function toggleSettings() { document.getElementById('settings').classList.toggle('hidden'); }
+        function saveSettings() { localStorage.setItem('snap_key', document.getElementById('apiKey').value); toggleSettings(); }
 
         function handleFileSelect(e) {
             const files = Array.from(e.target.files);
             files.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    selectedFiles.push({ base64: event.target.result, id: Date.now() });
+                    selectedFiles.push({ base64: event.target.result, id: Date.now() + Math.random() });
                     renderPreviews();
                 };
                 reader.readAsDataURL(file);
@@ -62,30 +93,33 @@
 
         function renderPreviews() {
             const grid = document.getElementById('imagePreviewGrid');
-            grid.innerHTML = selectedFiles.map(item => `<div class="aspect-square rounded-xl overflow-hidden shadow-md"><img src="${item.base64}" class="w-full h-full object-cover"></div>`).join('');
+            grid.innerHTML = selectedFiles.map(item => `
+                <div class="thumb shadow-sm"><img src="${item.base64}" class="w-full h-full object-cover">
+                <button onclick="removeFile(${item.id})" class="remove-btn"><i class="fa-solid fa-x"></i></button></div>
+            `).join('');
             document.getElementById('processBtn').classList.toggle('hidden', selectedFiles.length === 0);
         }
 
+        function removeFile(id) { selectedFiles = selectedFiles.filter(f => f.id !== id); renderPreviews(); }
+
         async function processBatch() {
-            const key = localStorage.getItem('snap_key');
-            if(!key) return alert("Missing API Key");
+            const key = document.getElementById('apiKey').value || localStorage.getItem('snap_key');
+            if(!key) return alert("API Key Missing");
             document.getElementById('loader').classList.remove('hidden');
+            document.getElementById('processBtn').classList.add('hidden');
             document.getElementById('resultsCard').classList.add('hidden');
 
             try {
-                // *** UPDATED PROMPT WITH LINE-JOINER LOGIC ***
+                // *** RESTORED 6-POINT LOGIC + FIXED ZERO SRP ***
                 const prompt = `PRE-READ INSTRUCTION: 
-                IMPORTANT: This invoice uses 2 lines per item. 
-                LINE A contains the Description. LINE B (below it) contains the UPC/SKU and Prices.
-                JOIN Line A and Line B into a single data record before processing.
+                Identify column headers. If items span two lines, join them. LOCK coordinates.
 
                 --- STRICT EXTRACTION LOGIC ---
 
                 1. DESCRIPTION EXTRACTION (LITERAL PASSTHROUGH):
-                   - ACTION: Capture the product description EXACTLY as written from Line A.
+                   - ACTION: Capture the product description EXACTLY as written. Include all codes/symbols. Ensure EACH line item has its own unique description from the invoice.
 
                 2. UPC RECONSTRUCTION (11-DIGIT MANDATORY):
-                   - Locate the UPC on Line B. 
                    - IF 12 digits: Use only the FIRST 11.
                    - IF 13 digits (00...): Strip first two zeros.
                    - IF 10 digits: Search [Description] to find the leading 11th digit.
@@ -94,21 +128,18 @@
                    - STEP 1: [UNITS] / [CASES] columns.
                    - STEP 2: Slash in description (e.g., "2/15" = 2).
                    - STEP 3: Text clues (e.g., "24PK" = 24).
-                   - STEP 4: Reverse math: [Net Cost] / [Retail Price], snapped to nearest standard pack.
 
-                4. PROFIT MARGIN VALIDATION:
-                   - Margin % = (1 - ((NetCost / UnitsPerCase) / SSP)) * 100.
-                   - VALID RANGE: 15% to 60%. If outside range, adjust UnitsPerCase.
+                4. IGNORE SRP/SSP:
+                   - Do NOT look for retail prices. Set ssp to 0.00.
 
                 5. DATA MAPPING:
                    - QTY ORDERED: Use "CASES" column.
-                   - SKU: Exactly the LAST 5 digits of the SKU/Item field on Line B.
+                   - SKU: Exactly the LAST 5 digits of the SKU/Item field.
                    - NET COST: Use "NET" column (Case Price).
-                   - SSP: Extract the Suggested Selling Price for the SINGLE UNIT.
-                   - UOM: Use "CS" for Cases, "PC" for items.
+                   - UOM: Extract Unit of Measure (PC, CS, etc.).
 
                 6. JSON OUTPUT: 
-                   { "items": [{ "upc": "string", "sku": "string", "description": "string", "netCost": float, "unitsPerCase": int, "qtyOrdered": int, "ssp": float, "uom": "string" }] }`;
+                   { "vendor": "string", "items": [{ "upc": "string", "sku": "string", "description": "string", "netCost": float, "unitsPerCase": int, "qtyOrdered": int, "uom": "string" }] }`;
 
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
                     method: 'POST',
@@ -121,29 +152,71 @@
 
                 const data = await res.json();
                 const result = JSON.parse(data.candidates[0].content.parts[0].text);
-                const ediContent = result.items.map(item => {
-                    const upc = (item.upc || "").toString().padEnd(11, ' ').slice(0, 11);
-                    const desc = (item.description || "").padEnd(26, ' ').slice(0, 26);
-                    const sku = (item.sku || "").toString().padStart(5, '0').slice(-5);
-                    const cost = Math.round((item.netCost || 0) * 100).toString().padStart(6, '0');
-                    const uom = (item.uom || "PC").padEnd(2, ' ').slice(0, 2);
-                    const pack = (item.unitsPerCase || 0).toString().padStart(6, '0');
-                    const qty = "+" + (item.qtyOrdered || 0).toString().padStart(4, '0');
-                    const ssp = Math.round((item.ssp || 0) * 100).toString().padStart(5, '0').slice(-5);
-                    return `B${upc}${desc}${sku}${cost}${uom}${pack}${qty}${ssp}001`;
-                }).join('\n');
+                const ediContent = result.items.map(item => generateBRecord(item)).join('\n');
 
                 document.getElementById('ediPreview').textContent = ediContent;
                 document.getElementById('resultsCard').classList.remove('hidden');
+                saveHistory(`EDI_${result.vendor || 'VENDOR'}_${Date.now()}.txt`, ediContent);
 
-            } catch (e) { alert("Processing Failed"); console.error(e); } 
-            finally { document.getElementById('loader').classList.add('hidden'); }
+            } catch (e) { alert("Processing Error"); } 
+            finally { document.getElementById('loader').classList.add('hidden'); selectedFiles = []; renderPreviews(); }
         }
 
-        function toggleSettings() {
-            const k = prompt("Gemini API Key:", localStorage.getItem('snap_key') || "");
-            if(k) localStorage.setItem('snap_key', k);
+        function generateBRecord(item) {
+            const upc = (item.upc || "").toString().padEnd(11, ' ').slice(0, 11);
+            const desc = (item.description || "").padEnd(26, ' ').slice(0, 26);
+            const sku = (item.sku || "").toString().padStart(5, '0').slice(-5);
+            const cost = Math.round((item.netCost || 0) * 100).toString().padStart(6, '0');
+            const uom = (item.uom || "PC").padEnd(2, ' ').slice(0, 2);
+            const pack = (item.unitsPerCase || 0).toString().padStart(6, '0');
+            const qty = "+" + (item.qtyOrdered || 0).toString().padStart(4, '0');
+            const ssp = "00000"; // FIXED ZERO SRP
+            return `B${upc}${desc}${sku}${cost}${uom}${pack}${qty}${ssp}001`;
         }
+
+        function saveHistory(fileName, content) {
+            const entry = { id: Date.now(), fileName, date: new Date().toLocaleString(), content };
+            history.unshift(entry);
+            localStorage.setItem('snap_history_v34', JSON.stringify(history));
+            renderHistory();
+        }
+
+        async function exportFile(id) {
+            const item = history.find(h => h.id == id);
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            if (navigator.share && isMobile) {
+                try { await navigator.share({ title: item.fileName, text: item.content }); } catch (e) {}
+            } else {
+                const b = new Blob([item.content], {type:'text/plain'});
+                const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = item.fileName; a.click();
+            }
+        }
+
+        function deleteRecord(id) {
+            history = history.filter(h => h.id !== id);
+            localStorage.setItem('snap_history_v34', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            document.getElementById('historyList').innerHTML = history.map(h => `
+                <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 flex justify-between items-center">
+                    <div class="truncate max-w-[55%]">
+                        <p class="text-[10px] font-black text-indigo-600 uppercase truncate">${h.fileName}</p>
+                        <p class="text-[8px] text-slate-400 font-bold">${h.date}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="exportFile(${h.id})" class="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center active:scale-90"><i class="fa-solid fa-share-nodes text-xs"></i></button>
+                        <button onclick="deleteRecord(${h.id})" class="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center active:scale-90"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.onload = () => { 
+            document.getElementById('apiKey').value = localStorage.getItem('snap_key') || ""; 
+            renderHistory(); 
+        };
     </script>
 </body>
 </html>
