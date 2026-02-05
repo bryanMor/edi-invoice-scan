@@ -3,47 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SnapEDI Pro v3.2</title>
+    <title>SnapEDI Pro v3.3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-        .thumb { position: relative; aspect-ratio: 1; border-radius: 16px; overflow: hidden; border: 2px solid #e2e8f0; background: #fff; }
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: -0.5px; }
     </style>
 </head>
 <body class="pb-24">
 
-    <nav class="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-50 flex justify-between items-center shadow-sm">
+    <nav class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm">
         <div>
-            <h1 class="text-xl font-black text-indigo-600 tracking-tighter uppercase italic">SnapEDI <span class="text-slate-400 font-bold text-xs italic">v3.2</span></h1>
-            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">6-POINT LOGIC ANCHOR</p>
+            <h1 class="text-xl font-black text-indigo-600 tracking-tighter uppercase italic">SnapEDI <span class="text-slate-400 font-bold text-xs italic">v3.3</span></h1>
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Multi-Line Correction Engine</p>
         </div>
-        <button onclick="toggleSettings()" class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500 border border-slate-100">
-            <i class="fa-solid fa-sliders"></i>
-        </button>
+        <button onclick="toggleSettings()" class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100"><i class="fa-solid fa-gear"></i></button>
     </nav>
 
     <main class="max-w-xl mx-auto p-6 space-y-6">
-        <div class="bg-white rounded-[2.5rem] p-6 shadow-xl border border-slate-100">
+        <div class="bg-white rounded-[2rem] p-6 shadow-xl border border-slate-100">
             <div id="imagePreviewGrid" class="grid grid-cols-3 gap-3 mb-6"></div>
-            <label class="block w-full text-center bg-slate-50 border-2 border-dashed border-slate-200 py-8 rounded-[1.5rem] cursor-pointer hover:bg-slate-100 transition-all">
-                <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Upload Invoices</span>
+            <label class="block w-full text-center bg-indigo-50 border-2 border-dashed border-indigo-200 py-10 rounded-[1.5rem] cursor-pointer">
+                <span class="text-xs font-black text-indigo-600 uppercase tracking-widest">Drop Invoice Here</span>
                 <input type="file" id="fileInput" multiple accept="image/*" class="hidden" onchange="handleFileSelect(event)">
             </label>
-            <button id="processBtn" onclick="processBatch()" class="hidden w-full mt-4 bg-indigo-600 text-white py-5 rounded-[1.5rem] font-black text-sm shadow-xl active:scale-95 transition-all">
-                RUN MATH AUDIT
+            <button id="processBtn" onclick="processBatch()" class="hidden w-full mt-4 bg-indigo-600 text-white py-5 rounded-[1.5rem] font-black shadow-lg">
+                RUN EXTRACTION
             </button>
         </div>
 
         <div id="loader" class="hidden text-center py-10">
-            <div class="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Applying Extraction Logic...</p>
+            <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="text-[10px] font-black text-slate-500 uppercase">Merging Multi-Line Records...</p>
         </div>
 
         <div id="resultsCard" class="hidden space-y-4">
-            <div id="ediPreview" class="bg-slate-900 text-sky-400 p-5 rounded-[2rem] mono text-[10px] leading-relaxed overflow-x-auto whitespace-pre border-l-4 border-emerald-500 shadow-inner"></div>
+            <div class="flex justify-between px-2"><h3 class="text-[10px] font-black text-slate-400 uppercase">EDI Output (70 Char)</h3></div>
+            <div id="ediPreview" class="bg-slate-900 text-emerald-400 p-5 rounded-[1.5rem] mono leading-relaxed overflow-x-auto whitespace-pre border-l-8 border-indigo-500"></div>
         </div>
     </main>
 
@@ -64,57 +62,53 @@
 
         function renderPreviews() {
             const grid = document.getElementById('imagePreviewGrid');
-            grid.innerHTML = selectedFiles.map(item => `<div class="thumb shadow-sm"><img src="${item.base64}" class="w-full h-full object-cover"></div>`).join('');
+            grid.innerHTML = selectedFiles.map(item => `<div class="aspect-square rounded-xl overflow-hidden shadow-md"><img src="${item.base64}" class="w-full h-full object-cover"></div>`).join('');
             document.getElementById('processBtn').classList.toggle('hidden', selectedFiles.length === 0);
         }
 
         async function processBatch() {
             const key = localStorage.getItem('snap_key');
-            if(!key) return alert("API Key Missing");
+            if(!key) return alert("Missing API Key");
             document.getElementById('loader').classList.remove('hidden');
             document.getElementById('resultsCard').classList.add('hidden');
 
             try {
-                // *** YOUR 6-POINT PROMPT RESTORED EXACTLY ***
+                // *** UPDATED PROMPT WITH LINE-JOINER LOGIC ***
                 const prompt = `PRE-READ INSTRUCTION: 
-                Read the entire Prompt. Identify column headers on the first two lines. Once verified, LOCK coordinates.
+                IMPORTANT: This invoice uses 2 lines per item. 
+                LINE A contains the Description. LINE B (below it) contains the UPC/SKU and Prices.
+                JOIN Line A and Line B into a single data record before processing.
 
                 --- STRICT EXTRACTION LOGIC ---
 
                 1. DESCRIPTION EXTRACTION (LITERAL PASSTHROUGH):
-                   - ACTION: Capture the product description EXACTLY as written. Do NOT clean or reformat. Include all codes/symbols.
+                   - ACTION: Capture the product description EXACTLY as written from Line A.
 
                 2. UPC RECONSTRUCTION (11-DIGIT MANDATORY):
+                   - Locate the UPC on Line B. 
                    - IF 12 digits: Use only the FIRST 11.
                    - IF 13 digits (00...): Strip first two zeros.
-                   - IF 10 digits: Search [Description + Category] on web to find the leading 11th digit. Verify it matches the product.
+                   - IF 10 digits: Search [Description] to find the leading 11th digit.
 
                 3. CALCULATE "UnitsPerCase" (HIERARCHY OF TRUTH):
                    - STEP 1: [UNITS] / [CASES] columns.
                    - STEP 2: Slash in description (e.g., "2/15" = 2).
-                   - STEP 3: Text clues (e.g., "5CT" = 5, "24PK" = 24).
+                   - STEP 3: Text clues (e.g., "24PK" = 24).
                    - STEP 4: Reverse math: [Net Cost] / [Retail Price], snapped to nearest standard pack.
 
-                4. PROFIT MARGIN VALIDATION (THE SAFETY NET):
-                   - ACTION: Perform this check before finalizing UnitsPerCase: 
-                     Margin % = (1 - ((NetCost / UnitsPerCase) / SSP)) * 100.
-                   - VALID RANGE: 15% to 60%. If the result is outside this range, re-evaluate Step 3. 
+                4. PROFIT MARGIN VALIDATION:
+                   - Margin % = (1 - ((NetCost / UnitsPerCase) / SSP)) * 100.
+                   - VALID RANGE: 15% to 60%. If outside range, adjust UnitsPerCase.
 
-                5. DATA MAPPING & QUANTITY:
-                   - QTY ORDERED: Use "CASES" column. (Qty must represent physical boxes/cases).
-                   - SKU: Exactly the LAST 5 digits of the SKU/Item field.
+                5. DATA MAPPING:
+                   - QTY ORDERED: Use "CASES" column.
+                   - SKU: Exactly the LAST 5 digits of the SKU/Item field on Line B.
                    - NET COST: Use "NET" column (Case Price).
-                   - SSP: Extract the Suggested Selling Price for the SINGLE UNIT ITEM.
-                   - UOM: Extract Unit of Measure (PC, CS, etc.).
+                   - SSP: Extract the Suggested Selling Price for the SINGLE UNIT.
+                   - UOM: Use "CS" for Cases, "PC" for items.
 
                 6. JSON OUTPUT: 
-                   {
-                     "items": [{
-                       "upc": "string", "sku": "string", "description": "string", 
-                       "netCost": float, "unitsPerCase": int, "qtyOrdered": int, 
-                       "ssp": float, "uom": "string"
-                     }]
-                   }`;
+                   { "items": [{ "upc": "string", "sku": "string", "description": "string", "netCost": float, "unitsPerCase": int, "qtyOrdered": int, "ssp": float, "uom": "string" }] }`;
 
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
                     method: 'POST',
@@ -127,35 +121,27 @@
 
                 const data = await res.json();
                 const result = JSON.parse(data.candidates[0].content.parts[0].text);
-                const ediContent = finalizeOutput(result);
+                const ediContent = result.items.map(item => {
+                    const upc = (item.upc || "").toString().padEnd(11, ' ').slice(0, 11);
+                    const desc = (item.description || "").padEnd(26, ' ').slice(0, 26);
+                    const sku = (item.sku || "").toString().padStart(5, '0').slice(-5);
+                    const cost = Math.round((item.netCost || 0) * 100).toString().padStart(6, '0');
+                    const uom = (item.uom || "PC").padEnd(2, ' ').slice(0, 2);
+                    const pack = (item.unitsPerCase || 0).toString().padStart(6, '0');
+                    const qty = "+" + (item.qtyOrdered || 0).toString().padStart(4, '0');
+                    const ssp = Math.round((item.ssp || 0) * 100).toString().padStart(5, '0').slice(-5);
+                    return `B${upc}${desc}${sku}${cost}${uom}${pack}${qty}${ssp}001`;
+                }).join('\n');
 
                 document.getElementById('ediPreview').textContent = ediContent;
                 document.getElementById('resultsCard').classList.remove('hidden');
 
-            } catch (e) { alert("Error: " + e.message); } 
-            finally { document.getElementById('loader').classList.add('hidden'); selectedFiles = []; renderPreviews(); }
+            } catch (e) { alert("Processing Failed"); console.error(e); } 
+            finally { document.getElementById('loader').classList.add('hidden'); }
         }
 
-        function generateBRecord(item) {
-            const upc = (item.upc || "").toString().padEnd(11, ' ').slice(0, 11); 
-            const desc = (item.description || "").padEnd(26, ' ').slice(0, 26);   
-            const sku = (item.sku || "").toString().padStart(5, '0').slice(-5);   
-            const cost = Math.round((item.netCost || 0) * 100).toString().padStart(6, '0'); 
-            const uom = (item.uom || "PC").padEnd(2, ' ').slice(0, 2);            
-            const pack = (item.unitsPerCase || 0).toString().padStart(6, '0');    
-            const qty = "+" + (item.qtyOrdered || 0).toString().padStart(4, '0'); 
-            const ssp = Math.round((item.ssp || 0) * 100).toString().padStart(5, '0').slice(-5); 
-            
-            return `B${upc}${desc}${sku}${cost}${uom}${pack}${qty}${ssp}001`;
-        }
-
-        function finalizeOutput(data) {
-            let items = data.items || [];
-            return items.map(item => generateBRecord(item)).join('\n');
-        }
-
-        function toggleSettings() { 
-            const k = prompt("Enter Gemini API Key:", localStorage.getItem('snap_key') || "");
+        function toggleSettings() {
+            const k = prompt("Gemini API Key:", localStorage.getItem('snap_key') || "");
             if(k) localStorage.setItem('snap_key', k);
         }
     </script>
