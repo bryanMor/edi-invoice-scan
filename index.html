@@ -126,12 +126,11 @@
        - EXAMPLE: 0003410030344 becomes 03410030344.
        - ALWAYS return exactly 11 digits.
 
-    4. REVERSE-MATH PACK SIZE (CRITICAL FOR MARGINS):
-       - DO NOT rely on description text (ignore "6PK", "12PK" text if it contradicts math).
-       - PRIMARY RULE: Divide [NET COST] by [SSP]. 
-       - Round result to nearest standard pack: 1, 2, 4, 6, 8, 10, 12, 15, 24, 30.
-       - EXAMPLE: $31.98 / $9.99 = 3.2 -> Round to 4. unitsPerCase = 4.
-       - EXAMPLE: $19.19 / $11.99 = 1.6 -> Round to 2. unitsPerCase = 2.
+    4. CALCULATE "UnitsPerCase" (TRIPLE-CHECK METHOD, CRITICAL FOR MARGINS):
+       - CHECK 1 (The Slash): If description contains a slash (e.g., "2/15" or "4/6"), multiply the numbers (2*15=30 or 4*6=24). This is the UnitsPerCase.
+       - CHECK 2 (The Math): If no slash, divide [Net Cost] / [SSP]. 
+       - CHECK 3 (The Snap): Take the result from Check 1 or 2 and "Snap" it to the nearest number in this list: [1, 2, 4, 6, 8, 12, 15, 18, 24, 30].
+       - FINAL VERIFY: If the Net Cost is over $15.00 and your result is "1", the math is wrong. Search the description for "PK" or "Case" and find the pack size there.
 
     5. FINANCIAL DATA RULES:
        - Target: "Net Case Price" (after discounts). 
@@ -232,4 +231,5 @@
     </script>
 </body>
 </html>
+
 
