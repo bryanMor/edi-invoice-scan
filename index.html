@@ -1,179 +1,253 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice to EDI Converter</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.0/lucide.min.js"></script>
-    <style>
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INVOICE TO EDI v2.0</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono&display=swap');
+body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+.mono { font-family: 'JetBrains Mono', monospace; letter-spacing: -0.5px; }
+.edi-preview {
+    background: #0f172a;
+    color: #38bdf8;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    white-space: pre;
+    overflow-x: auto;
+    border-left: 4px solid #10b981;
+}
+</style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4 md:p-8">
 
-    <div class="max-w-6xl mx-auto">
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">Invoice to EDI Converter</h1>
-            <p class="text-gray-600">Upload invoices and convert them to EDI flat file format (Record Type B)</p>
-        </div>
+<body class="pb-20 text-slate-900">
 
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-            
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
-                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                    <i data-lucide="upload-cloud" class="text-blue-600"></i>
-                </div>
-                <h3 class="font-semibold mb-1">Upload PDF</h3>
-                <p class="text-xs text-gray-500 mb-4">Drag and drop or click to browse</p>
-                <input type="file" id="fileInput" class="hidden" accept=".pdf,.json">
-                <button onclick="document.getElementById('fileInput').click()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
-                    Select File
-                </button>
-            </div>
+<header class="bg-slate-900 text-white p-4 shadow-lg sticky top-0 z-50">
+    <div class="max-w-4xl mx-auto text-center">
+        <h1 class="text-xl font-bold tracking-tight uppercase">
+            INVOICE TO <span class="text-emerald-400">EDI</span>
+        </h1>
+    </div>
+</header>
 
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <div class="flex items-center gap-2 mb-4">
-                    <i data-lucide="folder" class="w-5 h-5 text-indigo-500"></i>
-                    <h3 class="font-semibold">Folders</h3>
-                </div>
-                <select id="folderSelect" class="w-full p-2 border rounded-md text-sm bg-gray-50">
-                    <option>Main Directory</option>
-                    <option>Q1 Invoices</option>
-                    <option>Vendor Alpha</option>
-                </select>
-            </div>
+<main class="max-w-4xl mx-auto p-4 space-y-6">
 
-            <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="p-4 border-b border-gray-100 bg-gray-50/50">
-                    <h3 class="font-semibold text-sm">Recent Conversions</h3>
-                </div>
-                <div id="historyList" class="max-h-48 overflow-y-auto custom-scrollbar p-2">
-                    <p class="text-gray-400 text-sm text-center py-10">No recent activity</p>
-                </div>
-            </div>
-        </div>
-
-        <div id="resultsArea" class="hidden space-y-6">
-            <div id="validationAlert" class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg">
-                <div class="flex">
-                    <i data-lucide="alert-triangle" class="text-amber-400 mr-3"></i>
-                    <div>
-                        <p class="text-sm text-amber-700 font-medium">Validation Warnings</p>
-                        <ul id="violationList" class="text-xs text-amber-600 list-disc ml-4 mt-1"></ul>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-slate-900 rounded-xl shadow-xl overflow-hidden">
-                <div class="flex items-center justify-between p-4 bg-slate-800 text-white">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="file-code" class="w-5 h-5 text-blue-400"></i>
-                        <span class="font-mono text-sm" id="outputFileName">EDI_OUTPUT.txt</span>
-                    </div>
-                    <button onclick="copyEDI()" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded transition">Copy All</button>
-                </div>
-                <pre id="ediContent" class="p-6 font-mono text-green-400 text-xs overflow-x-auto whitespace-pre leading-relaxed"></pre>
-            </div>
-        </div>
+    <div class="bg-slate-900 rounded-3xl p-8 shadow-2xl text-center">
+        <p class="text-slate-400 text-xs font-bold uppercase tracking-[0.2em] mb-2">
+            Net Case Batch Total
+        </p>
+        <h2 id="grandTotal" class="text-5xl font-extrabold text-emerald-400">$0.00</h2>
     </div>
 
-    <script>
-        // Initialize Lucide Icons
-        lucide.createIcons();
+    <section class="bg-white border-2 border-dashed border-slate-300 rounded-3xl p-10 text-center cursor-pointer hover:border-emerald-400 transition"
+        onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" multiple accept="image/*" class="hidden"
+            onchange="handleFiles(this.files)">
+        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-camera text-2xl text-slate-400"></i>
+        </div>
+        <p class="text-slate-700 font-bold text-lg">Snap or Upload Invoices</p>
+    </section>
 
-        const fileInput = document.getElementById('fileInput');
-        const historyList = document.getElementById('historyList');
-        const resultsArea = document.getElementById('resultsArea');
-        const ediContent = document.getElementById('ediContent');
-        const violationList = document.getElementById('violationList');
+    <div id="queueSection" class="hidden">
+        <div id="batchQueue" class="space-y-2 mb-4"></div>
+        <button id="processBtn" onclick="processBatch()"
+            class="w-full bg-emerald-600 text-white font-black py-5 rounded-2xl hover:bg-emerald-700 transition uppercase tracking-[0.15em] text-lg">
+            Convert to EDI
+        </button>
+    </div>
 
-        // Logic shared with your React code
-        function convertToEDIFormat(item) {
-            const recordType = 'B';
-            const upc = (item.upc || '').replace(/[^0-9]/g, '').padStart(11, '0').substring(0, 11);
-            const description = (item.description || '').substring(0, 25).padEnd(25, ' ');
-            const sku = (item.sku || '').padStart(6, '0').substring(0, 6);
-            const priceVal = item.price || 0;
-            const casePrice = String(Math.round(priceVal * 100)).padStart(6, '0').substring(0, 6);
-            const unitOfMeasure = 'CA';
-            const packSize = String(item.pack || 1).padStart(6, '0').substring(0, 6);
-            const quantity = String(item.qty || 1).padStart(4, '0').substring(0, 4);
-            const fixedZeros = '0000000';
-            const fixedOne = '1';
+    <section>
+        <div class="flex justify-between items-end mb-4">
+            <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">History</h3>
+            <button onclick="exportFullHistory()"
+                class="text-xs font-bold text-emerald-600 uppercase hover:underline">
+                Bulk Download
+            </button>
+        </div>
+        <div id="historyList" class="space-y-4"></div>
+    </section>
 
-            const line = recordType + upc + description + sku + casePrice + unitOfMeasure + packSize + ' ' + quantity + fixedZeros + fixedOne;
-            
-            // Basic validation check
-            let violations = [];
-            if (upc === '00000000000') violations.push(`Item ${item.sku || 'Unknown'}: Missing UPC`);
-            
-            return { line, violations };
-        }
+</main>
 
-        // Handle File Upload Simulation
-        fileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+<script>
 
-            // Mocking data extraction since we don't have a PDF parser in a single HTML
-            const mockExtractedData = [
-                { upc: '12345678901', description: 'CRUNCHY OATS 500G', sku: 'A99', price: 12.50, pack: 12, qty: 5 },
-                { upc: '', description: 'WHOLE MILK 1L', sku: 'B22', price: 4.20, pack: 6, qty: 10 }
-            ];
+window.batchFiles = [];
+let history = JSON.parse(localStorage.getItem('invoice_edi_v2') || '[]');
 
-            processConversion(file.name, mockExtractedData);
-        });
+function handleFiles(files) {
+    window.batchFiles = Array.from(files);
+    const queue = document.getElementById('batchQueue');
+    const section = document.getElementById('queueSection');
 
-        function processConversion(filename, data) {
-            let fullEdi = "";
-            let allViolations = [];
+    queue.innerHTML = window.batchFiles.map(f =>
+        `<div class="bg-white p-3 border rounded-lg text-sm shadow-sm flex justify-between">
+            <span>${f.name}</span>
+            <i class="fas fa-check-circle text-emerald-500"></i>
+        </div>`
+    ).join('');
 
-            data.forEach(item => {
-                const result = convertToEDIFormat(item);
-                fullEdi += result.line + "\n";
-                allViolations = [...allViolations, ...result.violations];
+    section.classList.remove('hidden');
+}
+
+async function processBatch() {
+
+    const btn = document.getElementById('processBtn');
+    btn.disabled = true;
+    btn.innerText = "Processing...";
+
+    try {
+
+        for (const file of window.batchFiles) {
+
+            const base64Data = await fileToBase64(file);
+
+            const response = await fetch('https://invoice-backend-esbh.onrender.com/api/extract', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ base64Image: base64Data })
             });
 
-            // Update UI
-            document.getElementById('outputFileName').innerText = filename.replace('.pdf', '.txt');
-            ediContent.innerText = fullEdi;
-            resultsArea.classList.remove('hidden');
-
-            // Handle Violations
-            if (allViolations.length > 0) {
-                document.getElementById('validationAlert').classList.remove('hidden');
-                violationList.innerHTML = allViolations.map(v => `<li>${v}</li>`).join('');
-            } else {
-                document.getElementById('validationAlert').classList.add('hidden');
+            if (!response.ok) {
+                throw new Error("Server error: " + response.status);
             }
 
-            // Update History
-            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const historyItem = `
-                <div class="flex items-center justify-between p-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition">
-                    <div class="flex items-center gap-3">
-                        <i data-lucide="file-text" class="w-4 h-4 text-blue-500"></i>
-                        <div>
-                            <p class="text-sm font-medium">${filename}</p>
-                            <p class="text-[10px] text-gray-400">${time} • ${data.length} records</p>
-                        </div>
-                    </div>
-                    <i data-lucide="check-circle-2" class="w-4 h-4 text-green-500"></i>
-                </div>
-            `;
-            
-            if (historyList.querySelector('p')) historyList.innerHTML = '';
-            historyList.insertAdjacentHTML('afterbegin', historyItem);
-            lucide.createIcons();
+            const result = await response.json();
+
+            if (!result.items) {
+                throw new Error("Invalid response format");
+            }
+
+            processAndStore(result, file.name);
         }
 
-        function copyEDI() {
-            navigator.clipboard.writeText(ediContent.innerText);
-            alert("EDI data copied to clipboard!");
-        }
-    </script>
+        document.getElementById('queueSection').classList.add('hidden');
+
+    } catch (err) {
+        alert("Error: " + err.message);
+    }
+
+    btn.disabled = false;
+    btn.innerText = "Convert to EDI";
+}
+
+function generateBRecord(item) {
+
+    let r = "B";
+
+    r += String(item.upc || "").replace(/\D/g, '').substring(0, 11).padEnd(11, '0');
+    r += String(item.description || "").toUpperCase().substring(0, 26).padEnd(26, ' ');
+
+    let rawSku = String(item.sku || "").replace(/\D/g, '');
+    r += rawSku.slice(-5).padStart(5, '0');
+
+    r += Math.round(parseFloat(item.netCost || 0) * 100).toString().padStart(6, '0').substring(0, 6);
+
+    r += "CS";
+
+    let u = parseInt(item.unitsPerCase || 1);
+    if (!u || u <= 0) u = 1;
+
+    r += u.toString().padStart(6, '0').substring(0, 6);
+    r += "+";
+
+    r += String(item.qtyOrdered || 1).replace(/\D/g, '').padStart(4, '0').substring(0, 4);
+
+    let rt = (parseFloat(item.netCost || 0) / u) * 1.35;
+    r += Math.round(rt * 100).toString().padStart(5, '0').substring(0, 5);
+
+    r += "001";
+
+    return r.padEnd(70).substring(0, 70);
+}
+
+function processAndStore(data) {
+
+    let total = 0;
+
+    const edi = data.items.map(i => {
+        total += (parseFloat(i.netCost || 0) * parseInt(i.qtyOrdered || 1));
+        return generateBRecord(i);
+    }).join('\n');
+
+    const vendor = (data.vendorName || "VENDOR")
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .substring(0, 14)
+        .toUpperCase();
+
+    const date = data.invoiceDate || new Date().toISOString().slice(0, 10);
+
+    const fileName = `${vendor}_${date}.txt`;
+
+    history.unshift({
+        id: Date.now(),
+        fileName,
+        total: total.toFixed(2),
+        edi
+    });
+
+    history = history.slice(0, 50);
+
+    localStorage.setItem('invoice_edi_v2', JSON.stringify(history));
+
+    document.getElementById('grandTotal').innerText = `$${total.toFixed(2)}`;
+
+    renderHistory();
+}
+
+function renderHistory() {
+    const list = document.getElementById('historyList');
+
+    list.innerHTML = history.map(item => `
+        <div class="bg-white p-5 rounded-2xl border shadow-sm">
+            <div class="flex justify-between mb-3">
+                <span class="font-bold">${item.fileName}</span>
+                <span class="text-emerald-600 font-black">$${item.total}</span>
+            </div>
+            <div class="edi-preview mono mb-4">${item.edi}</div>
+            <button onclick="downloadTxt('${item.id}')"
+                class="w-full bg-slate-900 text-white py-3 rounded-xl text-xs font-bold uppercase">
+                Download
+            </button>
+        </div>
+    `).join('');
+}
+
+function downloadTxt(id) {
+    const item = history.find(h => h.id == id);
+    const blob = new Blob([item.edi], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = item.fileName;
+    a.click();
+}
+
+function exportFullHistory() {
+    const content = history.map(h => h.edi).join('\n');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = "FULL_EDI_EXPORT.txt";
+    a.click();
+}
+
+function fileToBase64(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+    });
+}
+
+window.onload = () => {
+    renderHistory();
+};
+
+</script>
 </body>
 </html>
