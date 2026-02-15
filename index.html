@@ -218,9 +218,32 @@ function renderHistory() {
     `).join('');
 }
 
-function downloadTxt(id) {
+async function downloadTxt(id) {
     const item = history.find(h => h.id == id);
-    const blob = new Blob([item.edi], { type: 'text/plain;charset=utf-8' });
+
+    const blob = new Blob([item.edi], {
+        type: 'text/plain'
+    });
+
+    const file = new File([blob], item.fileName, {
+        type: 'text/plain'
+    });
+
+    // If Web Share API supports files (mobile)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({
+                title: item.fileName,
+                text: "Invoice EDI File",
+                files: [file]
+            });
+            return;
+        } catch (err) {
+            console.log("Share cancelled or failed", err);
+        }
+    }
+
+    // Fallback for desktop
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = item.fileName;
