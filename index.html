@@ -248,7 +248,7 @@ async function downloadTxt(id) {
     const file = new File([blob], item.fileName, {
         type: 'text/plain'
     });
-
+    
     // If Web Share API supports files (mobile)
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
@@ -282,14 +282,17 @@ function fileToBase64(file) {
 function deleteInvoice(id) {
     if (!confirm("Delete this invoice?")) return;
 
-    const index = history.findIndex(item => item.id === id);
+    const index = history.findIndex(item => String(item.id) === String(id));
 
     if (index !== -1) {
         history.splice(index, 1);
     }
 
+    localStorage.setItem('invoice_edi_v2', JSON.stringify(history));
+
     renderHistory();
 }
+
 
 window.onload = () => {
     renderHistory();
@@ -298,5 +301,4 @@ window.onload = () => {
 </script>
 </body>
 </html>
-
 
