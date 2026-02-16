@@ -65,10 +65,7 @@ body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
     <section>
         <div class="flex justify-between items-end mb-4">
             <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">History</h3>
-            <button onclick="exportFullHistory()"
-                class="text-xs font-bold text-emerald-600 uppercase hover:underline">
-                Bulk Download
-            </button>
+            
         </div>
         <div id="historyList" class="space-y-4"></div>
     </section>
@@ -205,15 +202,26 @@ function renderHistory() {
 
     list.innerHTML = history.map(item => `
         <div class="bg-white p-5 rounded-2xl border shadow-sm">
+            
             <div class="flex justify-between mb-3">
                 <span class="font-bold">${item.fileName}</span>
                 <span class="text-emerald-600 font-black">$${item.total}</span>
             </div>
+
             <div class="edi-preview mono mb-4">${item.edi}</div>
-            <button onclick="downloadTxt('${item.id}')"
-                class="w-full bg-slate-900 text-white py-3 rounded-xl text-xs font-bold uppercase">
-                Download
-            </button>
+
+            <div class="flex gap-2">
+                <button onclick="downloadTxt('${item.id}')"
+                    class="w-full bg-slate-900 text-white py-3 rounded-xl text-xs font-bold uppercase">
+                    Download
+                </button>
+
+                <button onclick="deleteInvoice('${item.id}')"
+                    class="w-full bg-red-600 text-white py-3 rounded-xl text-xs font-bold uppercase">
+                    Delete
+                </button>
+            </div>
+
         </div>
     `).join('');
 }
@@ -250,14 +258,6 @@ async function downloadTxt(id) {
     a.click();
 }
 
-function exportFullHistory() {
-    const content = history.map(h => h.edi).join('\n');
-    const blob = new Blob([content], { type: 'text/plain' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = "FULL_EDI_EXPORT.txt";
-    a.click();
-}
 
 function fileToBase64(file) {
     return new Promise((resolve) => {
@@ -267,6 +267,14 @@ function fileToBase64(file) {
     });
 }
 
+function deleteInvoice(id) {
+    if (!confirm("Delete this invoice?")) return;
+
+    history = history.filter(item => item.id !== id);
+
+    renderHistory();
+}
+
 window.onload = () => {
     renderHistory();
 };
@@ -274,3 +282,4 @@ window.onload = () => {
 </script>
 </body>
 </html>
+
