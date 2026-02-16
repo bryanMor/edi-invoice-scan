@@ -153,7 +153,13 @@ function generateBRecord(item) {
     r += u.toString().padStart(6, '0').substring(0, 6);
     r += "+";
 
-    r += String(item.qtyOrdered || 1).replace(/\D/g, '').padStart(4, '0').substring(0, 4);
+    let qty =
+    item.qtyOrdered !== undefined && item.qtyOrdered !== null
+        ? String(item.qtyOrdered)
+        : "1";
+
+    r += qty.replace(/\D/g, '').padStart(4, '0').substring(0, 4);
+
 
     let rt = (parseFloat(item.netCost || 0) / u) * 1.35;
     r += Math.round(rt * 100).toString().padStart(5, '0').substring(0, 5);
@@ -168,7 +174,13 @@ function processAndStore(data) {
     let total = 0;
 
     const edi = data.items.map(i => {
-        total += (parseFloat(i.netCost || 0) * parseInt(i.qtyOrdered || 1));
+        const qty =
+        i.qtyOrdered !== undefined && i.qtyOrdered !== null
+        ? parseInt(i.qtyOrdered)
+        : 1;
+
+        total += (parseFloat(i.netCost || 0) * qty);
+
         return generateBRecord(i);
     }).join('\n');
 
@@ -270,7 +282,11 @@ function fileToBase64(file) {
 function deleteInvoice(id) {
     if (!confirm("Delete this invoice?")) return;
 
-    history = history.filter(item => item.id !== id);
+    const index = history.findIndex(item => item.id === id);
+
+    if (index !== -1) {
+        history.splice(index, 1);
+    }
 
     renderHistory();
 }
@@ -282,4 +298,5 @@ window.onload = () => {
 </script>
 </body>
 </html>
+
 
