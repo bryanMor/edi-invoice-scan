@@ -39,8 +39,9 @@ body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
 
     <div class="bg-slate-900 rounded-3xl p-8 shadow-2xl text-center">
         <p class="text-slate-400 text-xs font-bold uppercase tracking-[0.2em] mb-2">
-            Net Case Batch Total
-        </p>
+    		Last Invoice Total
+	</p>
+
         <h2 id="grandTotal" class="text-5xl font-extrabold text-emerald-400">$0.00</h2>
     </div>
 
@@ -66,16 +67,35 @@ body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
         <div class="flex justify-between items-end mb-4">
             <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">History</h3>
             
+	    
         </div>
         <div id="historyList" class="space-y-4"></div>
     </section>
 
 </main>
 
+
+
 <script>
 
 window.batchFiles = [];
 let history = JSON.parse(localStorage.getItem('invoice_edi_v2') || '[]');
+
+function parseQtySafe(v) {
+  if (v === null || v === undefined) return 0;
+
+  const s = String(v)
+    .replace(/[Oo]/g, "0")
+    .replace(/[lI]/g, "1")
+    .replace(/[^0-9]/g, "")
+    .trim();
+
+  if (s === "") return 0;
+
+  const n = parseInt(s, 10);
+  return Number.isNaN(n) ? 0 : n;
+}
+
 
 function handleFiles(files) {
     window.batchFiles = Array.from(files);
@@ -134,38 +154,45 @@ async function processBatch() {
 }
 
 function generateBRecord(item) {
-
     let r = "B";
 
-    r += String(item.upc || "").replace(/\D/g, '').substring(0, 11).padEnd(11, '0');
+    // 1. UPC: 11 digits, strictly numeric, space padded to maintain length
+    r += String(item.upc || "").replace(/\D/g, '').substring(0, 11).padEnd(11, ' ');
+
+    // 2. Description: 26 chars, uppercase, literal passthrough
     r += String(item.description || "").toUpperCase().substring(0, 26).padEnd(26, ' ');
 
+    // 3. SKU: Last 5 digits, zero padded
     let rawSku = String(item.sku || "").replace(/\D/g, '');
     r += rawSku.slice(-5).padStart(5, '0');
 
+    // 4. Net Cost: 6 digits (cents), zero padded
     r += Math.round(parseFloat(item.netCost || 0) * 100).toString().padStart(6, '0').substring(0, 6);
 
+    // 5. UOM: Always 2 characters (CS)
     r += "CS";
 
-    let u = parseInt(item.unitsPerCase || 1);
-    if (!u || u <= 0) u = 1;
-
+    // 6. UnitsPerCase: 6 digits, zero padded (No calculation, direct from item)
+    let u = parseInt(item.unitsPerCase, 10);
+    if (isNaN(u) || u <= 0) u = 1; 
     r += u.toString().padStart(6, '0').substring(0, 6);
+
+    // 7. Quantity Ordered: THE FIX - No default to 1, allows 0 and 2
     r += "+";
+const qty = parseQtySafe(item.qtyOrdered);
 
-    let qty =
-    item.qtyOrdered !== undefined && item.qtyOrdered !== null
-        ? String(item.qtyOrdered)
-        : "1";
+// ✅ do not output 0-qty lines at all
+if (qty === 0) return null;
 
-    r += qty.replace(/\D/g, '').padStart(4, '0').substring(0, 4);
+r += String(qty).padStart(4, '0').substring(0, 4);
 
+    // 8. SRP/SSP: FIXED ZEROS (per your 6-point logic)
+    r += "00000";
 
-    let rt = (parseFloat(item.netCost || 0) / u) * 1.35;
-    r += Math.round(rt * 100).toString().padStart(5, '0').substring(0, 5);
-
+    // 9. Constant
     r += "001";
 
+    // Final Length Check: Ensure exactly 70 characters
     return r.padEnd(70).substring(0, 70);
 }
 
@@ -173,16 +200,19 @@ function processAndStore(data) {
 
     let total = 0;
 
-    const edi = data.items.map(i => {
-        const qty =
-        i.qtyOrdered !== undefined && i.qtyOrdered !== null
-        ? parseInt(i.qtyOrdered)
-        : 1;
+    const edi = data.items
+  .map(i => {
+    const qty = parseQtySafe(i.qtyOrdered);
 
-        total += (parseFloat(i.netCost || 0) * qty);
+    // ✅ skip 0 qty lines entirely (no total, no record)
+    if (qty === 0) return null;
 
-        return generateBRecord(i);
-    }).join('\n');
+    total += (parseFloat(i.netCost || 0) * qty);
+    return generateBRecord(i);
+  })
+  .filter(Boolean)
+  .join('\n');
+
 
     const vendor = (data.vendorName || "VENDOR")
         .replace(/[^a-zA-Z0-9]/g, '')
@@ -214,7 +244,7 @@ function renderHistory() {
 
     list.innerHTML = history.map(item => `
         <div class="bg-white p-5 rounded-2xl border shadow-sm">
-            
+
             <div class="flex justify-between mb-3">
                 <span class="font-bold">${item.fileName}</span>
                 <span class="text-emerald-600 font-black">$${item.total}</span>
@@ -238,18 +268,15 @@ function renderHistory() {
     `).join('');
 }
 
+
 async function downloadTxt(id) {
-    const item = history.find(h => h.id == id);
+    const item = history.find(h => String(h.id) === String(id));
+    if (!item) return alert("File not found in history.");
 
-    const blob = new Blob([item.edi], {
-        type: 'text/plain'
-    });
+    const blob = new Blob([item.edi], { type: 'text/plain' });
+    const file = new File([blob], item.fileName, { type: 'text/plain' });
 
-    const file = new File([blob], item.fileName, {
-        type: 'text/plain'
-    });
-    
-    // If Web Share API supports files (mobile)
+    // Mobile share (files)
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
             await navigator.share({
@@ -263,12 +290,19 @@ async function downloadTxt(id) {
         }
     }
 
-    // Fallback for desktop
+    // Desktop fallback
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = item.fileName;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
+
+
+
 
 
 function fileToBase64(file) {
@@ -283,11 +317,9 @@ function deleteInvoice(id) {
     if (!confirm("Delete this invoice?")) return;
 
     const index = history.findIndex(item => String(item.id) === String(id));
+    if (index === -1) return;
 
-    if (index !== -1) {
-        history.splice(index, 1);
-    }
-
+    history.splice(index, 1);
     localStorage.setItem('invoice_edi_v2', JSON.stringify(history));
 
     renderHistory();
@@ -301,4 +333,3 @@ window.onload = () => {
 </script>
 </body>
 </html>
-
