@@ -157,7 +157,8 @@ function generateBRecord(item) {
     let r = "B";
 
     // 1. UPC: 11 digits, strictly numeric, space padded to maintain length
-    r += String(item.upc || "").replace(/\D/g, '').substring(0, 11).padEnd(11, ' ');
+    const upc11 = (item.upc11 || item.upc || "").toString().replace(/\D/g, "").substring(0, 11);
+r += upc11.padEnd(11, '0');
 
     // 2. Description: 26 chars, uppercase, literal passthrough
     r += String(item.description || "").toUpperCase().substring(0, 26).padEnd(26, ' ');
@@ -198,45 +199,45 @@ r += String(qty).padStart(4, '0').substring(0, 4);
 
 function processAndStore(data) {
 
-    let total = 0;
+  // Use backend total if present, otherwise fallback to local calc
+  let total = typeof data.grandTotal === "number" ? data.grandTotal : 0;
 
-    const edi = data.items
-  .map(i => {
-    const qty = parseQtySafe(i.qtyOrdered);
+  // Build EDI only from qty > 0 lines (your rule)
+  const edi = (data.items || [])
+    .map(i => {
+      const qty = parseQtySafe(i.qtyOrdered);
+      if (qty === 0) return null;
 
-    // ✅ skip 0 qty lines entirely (no total, no record)
-    if (qty === 0) return null;
+      return generateBRecord(i);
+    })
+    .filter(Boolean)
+    .join('\n');
 
-    total += (parseFloat(i.netCost || 0) * qty);
-    return generateBRecord(i);
-  })
-  .filter(Boolean)
-  .join('\n');
+  const vendor = (data.vendorName || "VENDOR")
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .substring(0, 14)
+      .toUpperCase();
 
+  const date = data.invoiceDate || new Date().toISOString().slice(0, 10);
+  const fileName = `${vendor}_${date}.txt`;
 
-    const vendor = (data.vendorName || "VENDOR")
-        .replace(/[^a-zA-Z0-9]/g, '')
-        .substring(0, 14)
-        .toUpperCase();
+  history.unshift({
+    id: Date.now(),
+    fileName,
+    total: Number(total).toFixed(2),
+    edi,
+    // NEW (store validation info)
+    invoiceTotal: (typeof data.invoiceTotal === "number") ? data.invoiceTotal.toFixed(2) : null,
+    totalMatches: !!data.totalMatches,
+    warnings: data.warnings || []
+  });
 
-    const date = data.invoiceDate || new Date().toISOString().slice(0, 10);
+  history = history.slice(0, 50);
+  localStorage.setItem('invoice_edi_v2', JSON.stringify(history));
 
-    const fileName = `${vendor}_${date}.txt`;
+  document.getElementById('grandTotal').innerText = `$${Number(total).toFixed(2)}`;
 
-    history.unshift({
-        id: Date.now(),
-        fileName,
-        total: total.toFixed(2),
-        edi
-    });
-
-    history = history.slice(0, 50);
-
-    localStorage.setItem('invoice_edi_v2', JSON.stringify(history));
-
-    document.getElementById('grandTotal').innerText = `$${total.toFixed(2)}`;
-
-    renderHistory();
+  renderHistory();
 }
 
 function renderHistory() {
@@ -245,10 +246,34 @@ function renderHistory() {
     list.innerHTML = history.map(item => `
         <div class="bg-white p-5 rounded-2xl border shadow-sm">
 
-            <div class="flex justify-between mb-3">
-                <span class="font-bold">${item.fileName}</span>
-                <span class="text-emerald-600 font-black">$${item.total}</span>
-            </div>
+            <div class="flex justify-between items-start mb-3 gap-2">
+  <div class="min-w-0">
+    <div class="font-bold truncate">${item.fileName}</div>
+
+    ${item.invoiceTotal ? `
+      <div class="text-xs text-slate-500 mt-1">
+        Invoice Total: $${item.invoiceTotal} · Computed: $${item.total}
+      </div>
+    ` : `
+      <div class="text-xs text-slate-500 mt-1">
+        Computed: $${item.total}
+      </div>
+    `}
+  </div>
+
+  <div class="text-right">
+    <div class="font-black ${item.totalMatches ? 'text-emerald-600' : 'text-amber-600'}">
+      $${item.total}
+    </div>
+
+    ${item.invoiceTotal ? `
+      <div class="text-[10px] font-bold uppercase mt-1 px-2 py-1 rounded-lg inline-block
+        ${item.totalMatches ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
+        ${item.totalMatches ? 'Totals Match' : 'Needs Review'}
+      </div>
+    ` : ''}
+  </div>
+</div>
 
             <div class="edi-preview mono mb-4">${item.edi}</div>
 
