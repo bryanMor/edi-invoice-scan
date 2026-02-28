@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>INVOICE TO EDI v2.0</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2 5 5h-5V4zm-3 8h2v4h-2v-4zm4 0h2v4h-2v-4zm-6 4H7v-2h2v2z'/></svg>">
 
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -130,14 +131,17 @@ async function processBatch() {
                 body: JSON.stringify({ base64Image: base64Data })
             });
 
+            const result = await response.json().catch(() => ({}));
+
             if (!response.ok) {
-                throw new Error("Server error: " + response.status);
+                const msg = result.error || result.message || "Server error: " + response.status;
+                throw new Error(msg);
             }
 
-            const result = await response.json();
-
-            if (!result.items) {
-                throw new Error("Invalid response format");
+            if (!result || !Array.isArray(result.items)) {
+                console.error("Invalid response from server (missing items). Full response:", result);
+                const hint = result.error ? " Server said: " + result.error : "";
+                throw new Error("Invalid response format: server did not return invoice items." + hint + " Open the browser console (F12) for details.");
             }
 
             processAndStore(result, file.name);
