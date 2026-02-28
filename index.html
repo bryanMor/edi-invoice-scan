@@ -132,17 +132,19 @@ async function processBatch() {
             });
 
             const result = await response.json().catch(() => ({}));
+            // Backward compatibility: if server returns a raw array, treat it as items
+            const normalizedResult = Array.isArray(result) ? { items: result } : result;
+
 
             if (!response.ok) {
                 const msg = result.error || result.message || "Server error: " + response.status;
                 throw new Error(msg);
             }
 
-            if (!result || !Array.isArray(result.items)) {
-                console.error("Invalid response from server (missing items). Full response:", result);
-                const hint = result.error ? " Server said: " + result.error : "";
-                throw new Error("Invalid response format: server did not return invoice items." + hint + " Open the browser console (F12) for details.");
-            }
+            if (!normalized || !Array.isArray(normalized.items)) {
+  console.error("Invalid response...", normalized);
+  ...
+}
 
             const hasNoItems = result.items.length === 0;
             if (hasNoItems) {
