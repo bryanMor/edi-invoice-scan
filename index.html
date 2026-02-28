@@ -144,7 +144,14 @@ async function processBatch() {
                 throw new Error("Invalid response format: server did not return invoice items." + hint + " Open the browser console (F12) for details.");
             }
 
-            processAndStore(result, file.name);
+            const hasNoItems = result.items.length === 0;
+            if (hasNoItems) {
+                result.grandTotal = result.grandTotal != null ? result.grandTotal : 0;
+                processAndStore(result, file.name);
+                alert("No line items were found on this invoice. A blank entry was added to history. Try a clearer image or PDF, or delete the entry and try again.");
+            } else {
+                processAndStore(result, file.name);
+            }
         }
 
         document.getElementById('queueSection').classList.add('hidden');
