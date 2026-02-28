@@ -160,7 +160,7 @@ async function processBatch() {
             // 2. Updated function name from processAndStore to processAndAdd
             if (hasNoItems) {
                 normalized.grandTotal = normalized.grandTotal != null ? normalized.grandTotal : 0;
-                processAndAdd(normalized, file.name); 
+                processAndStore(normalized, file.name); 
                 console.warn("No items found in " + file.name);
             } else {
                 processAndAdd(normalized, file.name);
